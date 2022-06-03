@@ -1,0 +1,3 @@
+[submodule "src/tuf"]
+	path = src/tuf
+	url = https://github.com/awwad/tuf.git
