@@ -169,7 +169,8 @@ def write_to_live(vin_to_update=None):
     repo = director_service_instance.vehicle_repositories[vin]
     repo_dir = repo._repository_directory
 
-    repo.mark_dirty(['timestamp', 'snapshot'])
+    #repo.mark_dirty(['timestamp', 'snapshot'])
+    repo.mark_dirty(['timestamp', 'snapshot', 'root'])
     repo.write() # will be writeall() in most recent TUF branch
 
     assert(os.path.exists(os.path.join(repo_dir, 'metadata.staged'))), \
