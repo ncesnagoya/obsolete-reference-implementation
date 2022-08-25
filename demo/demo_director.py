@@ -53,6 +53,9 @@ from six.moves import xmlrpc_server # for the director services interface
 
 import atexit # to kill server process on exit()
 
+import tuf.asn1_codec as asn1_codec
+import tuf.util
+import json
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -1234,3 +1237,279 @@ def kill_server():
         str(repo_server_process.pid))
     repo_server_process.kill()
     repo_server_process = None
+
+
+def delivering_an_update(ecu_serial):
+  firmware_fname = filepath_in_repo = 'firmware.img'
+  vin='democar'
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
+  write_to_live(vin_to_update=vin)
+
+  return
+
+
+def sign_without_compromised_keys_attack(vin=None):
+  """
+  <Purpose>
+    Re-generate Timestamp, Snapshot, and Targets metadata for all vehicles and
+    sign each of these roles with its previously revoked key.  The default key
+    names (director, directorsnapshot, directortimestamp, etc.) of the key
+    files are used if prefix_of_previous_keys is None, otherwise
+    'prefix_of_previous_keys' is prepended to them.  This is a high-level
+    version of the common function to update a role key. The director service
+    instance is also updated with the key changes.
+
+  <Arguments>
+    vin (optional)
+      If not provided, all known vehicles will be attacked. You may also provide
+      a single VIN (string) indicating one vehicle to attack.
+
+  <Side Effects>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Returns>
+    None.
+  """
+
+  global director_service_instance
+
+  print(LOG_PREFIX + 'ATTACK: arbitrary metadata, old key, all vehicles')
+
+  # ///////////////////////
+  full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'firmware.img')
+
+  # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
+  # SUBDIRECTORY IN THE REPOSITORY.
+  backup_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'backup_firmware.img')
+
+  if not os.path.exists(full_target_filepath):
+    raise Exception('The provided target file is not already in either the '
+        'Director or Image repositories. This attack is intended to be run on '
+        'an existing target that is already set to be delivered to a client.')
+
+  elif os.path.exists(backup_target_filepath):
+    raise Exception('The attack is already in progress, or was never recovered '
+        'from. Not running twice. Please check state and if everything is '
+        'otherwise okay, delete ' + repr(backup_target_filepath))
+
+  # If the image file already exists on the Director repository (not
+  # necessary), then back it up.
+  if os.path.exists(full_target_filepath):
+    shutil.copy(full_target_filepath, backup_target_filepath)
+
+  with open(full_target_filepath, 'w') as file_object:
+    file_object.write('evil content')
+  # ///////////////////////
+
+  # Start by backing up the repository before the attack occurs so that we
+  # can restore it afterwards in undo_sign_with_compromised_keys_attack.
+  backup_repositories(vin)
+
+  # Load the now-revoked keys.
+  old_targets_private_key = demo.import_private_key('new_director')
+  old_timestamp_private_key = demo.import_private_key('new_directortimestamp')
+  old_snapshot_private_key = demo.import_private_key('new_directorsnapshot')
+
+  current_targets_private_key = director_service_instance.key_dirtarg_pri
+  current_timestamp_private_key = director_service_instance.key_dirtime_pri
+  current_snapshot_private_key = director_service_instance.key_dirsnap_pri
+
+  # Ensure the director service uses the old (now-revoked) keys.
+  director_service_instance.key_dirtarg_pri = old_targets_private_key
+  director_service_instance.key_dirtime_pri = old_timestamp_private_key
+  director_service_instance.key_dirsnap_pri = old_snapshot_private_key
+
+  repo_dir = None
+
+  if vin is None:
+    vehicles_to_attack = director_service_instance.vehicle_repositories.keys()
+  else:
+    vehicles_to_attack = [vin]
+
+  for vin in vehicles_to_attack:
+
+    repository = director_service_instance.vehicle_repositories[vin]
+    repo_dir = repository._repository_directory
+
+    repository.targets.unload_signing_key(current_targets_private_key)
+    repository.snapshot.unload_signing_key(current_snapshot_private_key)
+    repository.timestamp.unload_signing_key(current_timestamp_private_key)
+
+    # Load the old signing keys to generate the malicious metadata. The root
+    # key is unchanged, and in the demo it is already loaded.
+    repository.targets.load_signing_key(old_targets_private_key)
+    repository.snapshot.load_signing_key(old_snapshot_private_key)
+    repository.timestamp.load_signing_key(old_timestamp_private_key)
+
+    repository.timestamp.version = repository.targets.version + 1
+    repository.timestamp.version = repository.snapshot.version + 1
+    repository.timestamp.version = repository.timestamp.version + 1
+
+    # Metadata must be partially written, otherwise write() will throw
+    # a UnsignedMetadata exception due to the invalid signing keys (i.e.,
+    # we are using the old signing keys, which have since been revoked.
+    repository.write(write_partial=True)
+
+    # Copy the staged metadata to a temp directory we'll move into place
+    # atomically in a moment.
+    shutil.copytree(os.path.join(repo_dir, 'metadata.staged'),
+        os.path.join(repo_dir, 'metadata.livetemp'))
+
+    # Empty the existing (old) live metadata directory (relatively fast).
+    if os.path.exists(os.path.join(repo_dir, 'metadata')):
+      shutil.rmtree(os.path.join(repo_dir, 'metadata'))
+
+    # Atomically move the new metadata into place.
+    os.rename(os.path.join(repo_dir, 'metadata.livetemp'),
+        os.path.join(repo_dir, 'metadata'))
+
+  print(LOG_PREFIX + 'COMPLETED ATTACK')
+
+
+def undo_sign_without_compromised_keys_attack(vin=None):
+  """
+  <Purpose>
+    Undo the actions executed by sign_with_compromised_keys_attack().  Namely,
+    move the valid metadata into the live and metadata.staged directories, and
+    reload the valid keys for each repository.
+
+  <Arguments>
+    vin (optional)
+      If not provided, all known vehicles will be reverted to normal state from
+      attacked state. You may also provide a single VIN (string) indicating
+      one vehicle to undo the attack for.
+
+  <Side Effects>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Returns>
+    None.
+  """
+
+  # ////////////////////////
+  full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'firmware.img')
+
+  # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
+  # SUBDIRECTORY IN THE REPOSITORY.
+  backup_full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'backup_firmware.img')
+
+  if not os.path.exists(backup_full_target_filepath) or not os.path.exists(full_target_filepath):
+    raise Exception('The expected backup or attacked files do not exist. No '
+        'attack is in progress to undo, or manual manipulation has '
+        'broken the expected state.')
+
+  # In the case of the Director repository, we expect there to be a malicious
+  # image file, so we restore the backup over it.
+  os.rename(backup_full_target_filepath, full_target_filepath)
+  # ////////////////////////
+
+  # Re-load the valid keys, so that the repository objects can be updated to
+  # reference them and replace the compromised keys set.
+  valid_targets_private_key = demo.import_private_key('director')
+  valid_timestamp_private_key = demo.import_private_key('directortimestamp')
+  valid_snapshot_private_key = demo.import_private_key('directorsnapshot')
+
+  current_targets_private_key = director_service_instance.key_dirtarg_pri
+  current_timestamp_private_key = director_service_instance.key_dirtime_pri
+  current_snapshot_private_key = director_service_instance.key_dirsnap_pri
+
+  # Set the new private keys in the director service.  These keys are shared
+  # between all vehicle repositories.
+  director_service_instance.key_dirtarg_pri = valid_targets_private_key
+  director_service_instance.key_dirtime_pri = valid_timestamp_private_key
+  director_service_instance.key_dirsnap_pri = valid_snapshot_private_key
+
+  # Revert to the last backup for all metadata in the Director repositories.
+  #restore_repositories(vin)
+  # //////////////
+  repo_dir = director_service_instance.vehicle_repositories[vin]._repository_directory
+
+    # Copy the backup metadata to the metada.staged and live directories.  The
+    # backup metadata should already exist if
+    # sign_with_compromised_keys_attack() was called.
+
+  if not os.path.exists(os.path.join(repo_dir, 'metadata.backup')):
+    raise uptane.Error('Unable to restore backup of ' + repr(repo_dir) +
+        '; no backup exists.')
+
+  # Empty the existing (old) live metadata directory (relatively fast).
+  print(LOG_PREFIX + 'Deleting ' + os.path.join(repo_dir, 'metadata.staged'))
+  if os.path.exists(os.path.join(repo_dir, 'metadata.staged')):
+    shutil.rmtree(os.path.join(repo_dir, 'metadata.staged'))
+
+  # Atomically move the new metadata into place.
+  print(LOG_PREFIX + 'Moving backup to ' +
+      os.path.join(repo_dir, 'metadata.staged'))
+  os.rename(os.path.join(repo_dir, 'metadata.backup'),
+      os.path.join(repo_dir, 'metadata.staged'))
+  # //////////////
+
+  if vin is None:
+    vehicles_to_attack = director_service_instance.vehicle_repositories.keys()
+  else:
+    vehicles_to_attack = [vin]
+
+  for vin in vehicles_to_attack:
+
+    repository = director_service_instance.vehicle_repositories[vin]
+    repo_dir = repository._repository_directory
+
+    # Load the new signing keys to write metadata.
+    repository.targets.load_signing_key(valid_targets_private_key)
+    repository.snapshot.load_signing_key(valid_snapshot_private_key)
+    repository.timestamp.load_signing_key(valid_timestamp_private_key)
+
+  print(LOG_PREFIX + 'COMPLETED UNDO ATTACK')
+
+
+def add_eviltarget_and_write_to_live(ecu_serial):
+  """
+  High-level version of add_target_to_director() that creates 'filename'
+  and writes the changes to the live directory repository.
+  """
+
+  filename = 'firmware.img'
+  file_content = 'evil content'
+  vin = 'democar'
+  # Create 'filename' in the current working directory, but it should
+  # ideally be to a temporary destination.  The demo code will eventually
+  # be modified to use temporary directories (which will cleaned up after
+  # running the demo code).
+  with open(filename, 'w') as file_object:
+    file_object.write(file_content)
+
+  # The path that will identify the file in the repository.
+  filepath_in_repo = filename
+
+  add_target_to_director(filename, filepath_in_repo, vin, ecu_serial)
+  write_to_live(vin_to_update=vin)
+
+
+def convert_metadata_der_to_json(vin, rolename):
+  metadata_signable = tuf.util.load_file(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', rolename + '.der'))
+  
+  fileobject = open(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', rolename + '.json'), 'w' )
+  json.dump(metadata_signable, fileobject)
+  
+  return
+
+
+def convert_metadata_json_to_der(vin, rolename):
+  metadata_signable = tuf.util.load_file(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', rolename + '.json'))
+
+  written_metadata_content = asn1_codec.convert_signed_metadata_to_der(metadata_signable)
+
+  fileobject = open(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', rolename + '.der'), 'wb' )
+  fileobject.write(written_metadata_content)
+  fileobject.close()
+  return

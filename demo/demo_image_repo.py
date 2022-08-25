@@ -39,6 +39,9 @@ from six.moves import xmlrpc_server # for the director services interface
 
 import atexit # to kill server process on exit()
 
+import tuf.asn1_codec as asn1_codec
+import tuf.util
+import json
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -595,3 +598,53 @@ def kill_server():
         str(server_process.pid))
     server_process.kill()
     server_process = None
+
+
+def delivering_an_update():
+  firmware_fname = filepath_in_repo = 'firmware.img'
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_imagerepo(firmware_fname, filepath_in_repo)
+  write_to_live()
+
+  return
+
+
+def add_eviltarget_and_write_to_live():
+  """
+  High-level version of add_target_to_imagerepo() that creates the target
+  file, and writes the changes to the live repository.
+  """
+
+  filename = 'firmware.img'
+  file_content = 'evil content'
+
+  # Create 'filename' in the current working directory, but it should
+  # ideally be to a temporary destination.  The demo code will eventually
+  # be modified to use temporary directories (which will cleaned up after
+  # running demo code).
+  with open(filename, 'w') as file_object:
+    file_object.write(file_content)
+
+  filepath_in_repo = filename
+  add_target_to_imagerepo(filename, filepath_in_repo)
+  write_to_live()
+
+
+def convert_metadata_der_to_json(rolename):
+  metadata_signable = tuf.util.load_file(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.der'))
+  
+  fileobject = open(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.json'), 'w' )
+  json.dump(metadata_signable, fileobject)
+  
+  return
+
+
+def convert_metadata_json_to_der(rolename):
+  metadata_signable = tuf.util.load_file(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.json'))
+
+  written_metadata_content = asn1_codec.convert_signed_metadata_to_der(metadata_signable)
+
+  fileobject = open(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.der'), 'wb' )
+  fileobject.write(written_metadata_content)
+  fileobject.close()
+  return
