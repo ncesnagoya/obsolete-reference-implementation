@@ -1,0 +1,13 @@
+{
+  "repositories": {
+    "defaultrepo": {
+      "mirrors": ["<DETERMINED_IN_TEST_SETUP>"]
+    }
+  },
+  "delegations": [
+    {
+      "paths": ["*"],
+      "repositories": ["defaultrepo"]
+    }
+  ]
+}
