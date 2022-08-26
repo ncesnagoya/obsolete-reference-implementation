@@ -4,6 +4,6 @@ cryptography==2.3
 pynacl==1.2.1
 pyasn1==0.4.4
 pycrypto==2.6.1
---editable ./src/tuf
+--editable src/tuf
 --editable .
 tox==3.1.2
