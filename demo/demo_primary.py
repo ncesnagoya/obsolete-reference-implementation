@@ -75,6 +75,12 @@ director_proxy = None
 listener_thread = None
 most_recent_signed_vehicle_manifest = None
 
+# log
+log = uptane.logging.getLogger('demo_Primary')
+log.addHandler(uptane.file_handler)
+log.addHandler(uptane.console_handler)
+log.setLevel(uptane.logging.DEBUG)
+
 
 def clean_slate(
     use_new_keys=False,
@@ -231,6 +237,7 @@ def update_cycle():
   # FIRST: TIME
   #
 
+  log.debug('Start Uptate Primary.')
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -242,6 +249,7 @@ def update_cycle():
   #  raise Exception('Unable to connect to server.')
 
   print('Submitting a request for a signed time to the Timeserver.')
+  log.debug('Submitting a request for a signed time to the Timeserver.')
 
 
   if tuf.conf.METADATA_FORMAT == 'der': # TODO: Should check setting in Uptane.
@@ -356,6 +364,7 @@ def submit_vehicle_manifest_to_director(signed_vehicle_manifest=None):
       str(demo.DIRECTOR_SERVER_PORT))
 
   print("Submitting the Primary's manifest to the Director.")
+  log.debug("Submitting the Primary's manifest to the Director.")
 
   server.submit_vehicle_manifest(
       primary_ecu.vin,
@@ -444,6 +453,7 @@ def get_image_for_ecu(ecu_serial):
   binary_data = xmlrpc_client.Binary(open(image_fname, 'rb').read())
 
   print('Distributing image to ECU ' + repr(ecu_serial))
+  log.debug('Distributing image to ECU ' + repr(ecu_serial))
 
   # Get relative filename (relative to the client targets directory) so that
   # it can be used as a TUF-style filepath within the targets namespace by
@@ -511,6 +521,7 @@ def get_metadata_for_ecu(ecu_serial, force_partial_verification=False):
         ' Verification Mode')
 
   print('Distributing metadata file ' + fname + ' to ECU ' + repr(ecu_serial))
+  log.debug('Distributing metadata file ' + fname + 'from Primay to ECU ' + repr(ecu_serial))
 
   binary_data = xmlrpc_client.Binary(open(fname, 'rb').read())
 

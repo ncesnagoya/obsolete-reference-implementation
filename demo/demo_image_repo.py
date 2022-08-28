@@ -159,6 +159,7 @@ def write_to_live():
   global repo
 
   # Write the metadata files out to the Image Repository's 'metadata.staged'
+  #repo.mark_dirty(['timestamp', 'snapshot'])
   repo.mark_dirty(['timestamp', 'snapshot', 'root'])
   repo.write() # will be writeall() in most recent TUF branch
 

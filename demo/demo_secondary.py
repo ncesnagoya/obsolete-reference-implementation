@@ -72,6 +72,11 @@ attacks_detected = ''
 
 most_recent_signed_ecu_manifest = None
 
+# log
+log = uptane.logging.getLogger('demo_Secondary')
+log.addHandler(uptane.file_handler)
+log.addHandler(uptane.console_handler)
+log.setLevel(uptane.logging.DEBUG)
 
 def clean_slate(
     use_new_keys=False,
@@ -244,6 +249,9 @@ def submit_ecu_manifest_to_primary(signed_ecu_manifest=None):
   #if not server.system.listMethods():
   #  raise Exception('Unable to connect to server.')
 
+  print("Submitting the Secondary's manifest to the Primary.")
+  log.debug("Submitting the Secondary's manifest to the Primary.")
+
   server.submit_ecu_manifest(
       secondary_ecu.vin,
       secondary_ecu.ecu_serial,
@@ -286,9 +294,14 @@ def update_cycle():
   global current_firmware_fileinfo
   global attacks_detected
 
+  log.debug('Start Uptate Secondary.')
+
   # Connect to the Primary
   pserver = xmlrpc_client.ServerProxy(
     'http://' + str(_primary_host) + ':' + str(_primary_port))
+
+  print('Submitting a request for a signed time to the Primary.')
+  log.debug('Submitting a request for a signed time to the Primary.')
 
   # Download the time attestation from the Primary.
   time_attestation = pserver.get_time_attestation_for_ecu(_ecu_serial)
@@ -300,8 +313,11 @@ def update_cycle():
     # from it like so:
     time_attestation = time_attestation.data
 
+  log.debug('Get a signed time from the Primary:' + repr(time_attestation) + '.')
+
   # Download the metadata from the Primary in the form of an archive. This
   # returns the binary data that we need to write to file.
+  log.debug('Submitting request for a metadata to Primary.')
   metadata_archive = pserver.get_metadata(secondary_ecu.ecu_serial)
 
   # Verify the time attestation and internalize the time (if verified, the time
@@ -376,11 +392,13 @@ def update_cycle():
     print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
         text='Primary reports that there is no update for this ECU.')
     # print(YELLOW + 'Primary reports that there is no update for this ECU.')
+    log.debug('Submitting a request for a image to the Primary.')
     (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
     generate_signed_ecu_manifest()
     submit_ecu_manifest_to_primary()
     return
 
+  log.debug('Submitting a request for a image to the Primary.')
   # Download the image for this ECU from the Primary.
   (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
 

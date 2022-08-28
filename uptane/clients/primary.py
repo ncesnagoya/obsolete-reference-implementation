@@ -1145,6 +1145,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
         timeserver_attestation)
 
+    log.debug('Get a signed time from the Timeserver:' + repr(timeserver_attestation) + '.')
+
 
     # Assume there's only one signature. This assumption is made for simplicity
     # in this reference implementation. If the Timeserver needs to sign with

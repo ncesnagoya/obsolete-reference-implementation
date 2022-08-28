@@ -232,13 +232,14 @@ def _download_file(url, required_length, STRICT_REQUIRED_LENGTH=True):
   # they might put back-slashes in place of forward-slashes.  This converts it
   # to the common format. 
   url = url.replace('\\', '/')
-  logger.info('Downloading: ' + repr(url))
+  logger.info('Request: ' + repr(url))
 
   # This is the temporary file that we will return to contain the contents of
   # the downloaded file.
   temp_file = tuf.util.TempFile()
 
   try:
+    logger.info('Downloading: ' + repr(url))
     # Open the connection to the remote file.
     connection = _open_connection(url)
 

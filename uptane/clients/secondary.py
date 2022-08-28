@@ -410,6 +410,8 @@ class Secondary(object):
     uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
         timeserver_attestation)
 
+    log.debug('Get a signed time from the Primary:' + repr(timeserver_attestation) + '.')
+
     # Assume there's only one signature.
     assert len(timeserver_attestation['signatures']) == 1
 
