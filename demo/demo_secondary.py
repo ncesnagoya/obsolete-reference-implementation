@@ -294,7 +294,7 @@ def update_cycle():
   global current_firmware_fileinfo
   global attacks_detected
 
-  log.debug('Start Uptate Secondary.')
+  log.debug('Start Update Secondary.')
 
   # Connect to the Primary
   pserver = xmlrpc_client.ServerProxy(

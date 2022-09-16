@@ -237,7 +237,7 @@ def update_cycle():
   # FIRST: TIME
   #
 
-  log.debug('Start Uptate Primary.')
+  log.debug('Start Update Primary.')
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -521,7 +521,7 @@ def get_metadata_for_ecu(ecu_serial, force_partial_verification=False):
         ' Verification Mode')
 
   print('Distributing metadata file ' + fname + ' to ECU ' + repr(ecu_serial))
-  log.debug('Distributing metadata file ' + fname + 'from Primay to ECU ' + repr(ecu_serial))
+  log.debug('Distributing metadata file ' + fname + ' from Primay to ECU ' + repr(ecu_serial))
 
   binary_data = xmlrpc_client.Binary(open(fname, 'rb').read())
 
