@@ -1249,6 +1249,16 @@ def delivering_an_update(ecu_serial):
   return
 
 
+def delivering_an_update2(ecu_serial):
+  firmware_fname = filepath_in_repo = 'firmware2.img'
+  vin='democar'
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
+  write_to_live(vin_to_update=vin)
+
+  return
+
+
 def sign_without_compromised_keys_attack(vin=None):
   """
   <Purpose>
@@ -1494,6 +1504,76 @@ def add_eviltarget_and_write_to_live(ecu_serial):
 
   add_target_to_director(filename, filepath_in_repo, vin, ecu_serial)
   write_to_live(vin_to_update=vin)
+
+
+def mix_and_match_attack(target_filepath):
+  """
+  Simulate a Mix and match attack, without
+  compromising any keys.  Move an evil target file into place on the Director
+  repository without updating metadata.
+  """
+  vin = 'democar'
+  print(LOG_PREFIX + 'ATTACK: mix and match attack, no keys, on VIN ' +
+      repr(vin) + ', target_filepath ' + repr(target_filepath))
+
+  full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', target_filepath)
+
+  # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
+  # SUBDIRECTORY IN THE REPOSITORY.
+  backup_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'backup_' + target_filepath)
+
+  if not os.path.exists(full_target_filepath):
+    raise Exception('The provided target file is not already in either the '
+        'Director or Image repositories. This attack is intended to be run on '
+        'an existing target that is already set to be delivered to a client.')
+
+  elif os.path.exists(backup_target_filepath):
+    raise Exception('The attack is already in progress, or was never recovered '
+        'from. Not running twice. Please check state and if everything is '
+        'otherwise okay, delete ' + repr(backup_target_filepath))
+
+  # If the image file already exists on the Director repository (not
+  # necessary), then back it up.
+  if os.path.exists(full_target_filepath):
+    shutil.copy(full_target_filepath, backup_target_filepath)
+
+  with open(full_target_filepath, 'w') as file_object:
+    file_object.write('EVIL UPDATE: ARBITRARY PACKAGE ATTACK TO BE'
+        ' DELIVERED FROM MITM (no keys compromised).')
+
+  print(LOG_PREFIX + 'COMPLETED ATTACK')
+
+
+def undo_mix_and_match_attack(target_filepath):
+  """
+  Undo the Mix and match attack launched by
+  mix_and_match_attack().  Move evil target file out and normal
+  target file back in.
+  """
+  vin = 'democar'
+  print(LOG_PREFIX + 'UNDO ATTACK: arbitrary package, no keys, on VIN ' +
+      repr(vin) + ', target_filepath ' + repr(target_filepath))
+
+  full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', target_filepath)
+
+  # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
+  # SUBDIRECTORY IN THE REPOSITORY.
+  backup_full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'targets', 'backup_' + target_filepath)
+
+  if not os.path.exists(backup_full_target_filepath) or not os.path.exists(full_target_filepath):
+    raise Exception('The expected backup or attacked files do not exist. No '
+        'attack is in progress to undo, or manual manipulation has '
+        'broken the expected state.')
+
+  # In the case of the Director repository, we expect there to be a malicious
+  # image file, so we restore the backup over it.
+  os.rename(backup_full_target_filepath, full_target_filepath)
+
+  print(LOG_PREFIX + 'COMPLETED UNDO ATTACK')
 
 
 def convert_metadata_der_to_json(vin, rolename):
