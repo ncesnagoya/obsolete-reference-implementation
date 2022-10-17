@@ -132,6 +132,8 @@ import tuf.util
 import six
 import iso8601
 
+from demo.uptane_banners import * 
+
 # See 'log.py' to learn how logging is handled in TUF.
 logger = logging.getLogger('tuf.client.updater')
 
@@ -1998,6 +2000,16 @@ class SingleRepoUpdater(object):
         logger.exception('Update failed from ' + file_mirror + '.')
         file_mirror_errors[file_mirror] = exception
         file_object = None
+
+        # Add print_banner START
+        print_banner_no_clearscreen(BANNER_BAD_HASH_ERROR, color=WHITE+DARK_BLUE_BG,
+            text='No image was found that exactly matches the signed metadata '
+            'from the Director and Image Repositories. Not keeping '
+            'untrustworthy files. ', sound=TADA)
+
+        # Add print_banner EEND
+
+
       
       else:
         break
