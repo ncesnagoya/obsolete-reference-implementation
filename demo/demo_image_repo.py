@@ -609,6 +609,13 @@ def delivering_an_update():
 
   return
 
+def delivering_an_update2():
+  firmware_fname = filepath_in_repo = 'firmware2.img'
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_imagerepo(firmware_fname, filepath_in_repo)
+  write_to_live()
+
+  return
 
 def add_eviltarget_and_write_to_live():
   """
