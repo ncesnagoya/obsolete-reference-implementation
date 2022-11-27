@@ -1594,3 +1594,242 @@ def convert_metadata_json_to_der(vin, rolename):
   fileobject.write(written_metadata_content)
   fileobject.close()
   return
+
+
+def backup_metadata(vin):
+  """
+  Copy timestamp.der to backup_timestamp.der
+  Copy snapshot.der  to backup_snapshot.der
+  Copy root.der      to backup_root.der
+  Copy targets.der   to backup_targets.der
+
+  Example:
+  >>> import demo.demo_director as dd
+  >>> dd.clean_slate()
+  >>> dd.backup_timestamp('111')
+  """
+
+  """
+  timestamp
+  """
+  timestamp_filename = 'timestamp.' + tuf.conf.METADATA_FORMAT
+  timestamp_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+      timestamp_filename)
+
+  backup_timestamp_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + timestamp_filename)
+
+  """
+  snapshot
+  """
+  snapshot_filename = 'snapshot.' + tuf.conf.METADATA_FORMAT
+  snapshot_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+      snapshot_filename)
+
+  backup_snapshot_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + snapshot_filename)
+
+  """
+  root
+  """
+  root_filename = 'root.' + tuf.conf.METADATA_FORMAT
+  root_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+      root_filename)
+
+  backup_root_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + root_filename)
+
+  """
+  targets
+  """
+  targets_filename = 'targets.' + tuf.conf.METADATA_FORMAT
+  targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+      targets_filename)
+
+  backup_targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + targets_filename)
+
+
+  shutil.copyfile(timestamp_path, backup_timestamp_path)
+  shutil.copyfile(snapshot_path, backup_snapshot_path)
+  shutil.copyfile(root_path, backup_root_path)
+  shutil.copyfile(targets_path, backup_targets_path)
+
+
+
+def replay_metadata(vin):
+
+  """
+  Move 'backup_timestamp.der' to 'timestamp.der', effectively rolling back
+  timestamp to a previous version.  'backup_timestamp.der' must already exist
+  at the expected path (can be created via backup_timestamp(vin)).
+  Prior to rolling back timestamp.der, the current timestamp is saved to
+  'current_timestamp.der'.
+
+  Example:
+  >>> import demo.demo_director as dd
+  >>> dd.clean_slate()
+  >>> dd.backup_timestamp('111')
+  >>> dd.replay_timestamp()
+  """
+
+  """
+  timestamp
+  """
+  timestamp_filename = 'timestamp.' + tuf.conf.METADATA_FORMAT
+  backup_timestamp_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + timestamp_filename)
+
+  if not os.path.exists(backup_timestamp_path):
+    raise Exception('Cannot replay the Timestamp'
+        ' file.  ' + repr(backup_timestamp_path) + ' must already exist.'
+        '  It can be created by calling backup_metadata(vin).')
+  else:
+    timestamp_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        timestamp_filename)
+    current_timestamp_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        'current_' + timestamp_filename)
+
+    # First backup the current timestamp.
+    shutil.move(timestamp_path, current_timestamp_backup)
+    shutil.move(backup_timestamp_path, timestamp_path)
+
+  """
+  snapshot
+  """
+  snapshot_filename = 'snapshot.' + tuf.conf.METADATA_FORMAT
+  backup_snapshot_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + snapshot_filename)
+
+  if not os.path.exists(backup_snapshot_path):
+    raise Exception('Cannot replay the Snapshot'
+        ' file.  ' + repr(backup_snapshot_path) + ' must already exist.'
+        '  It can be created by calling backup_metadata(vin).')
+  else:
+    snapshot_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        snapshot_filename)
+    current_snapshot_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        'current_' + snapshot_filename)
+
+    # First backup the current snapshot.
+    shutil.move(snapshot_path, current_snapshot_backup)
+    shutil.move(backup_snapshot_path, snapshot_path)
+
+  """
+  root
+  """
+  root_filename = 'root.' + tuf.conf.METADATA_FORMAT
+  backup_root_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + root_filename)
+
+  if not os.path.exists(backup_root_path):
+    raise Exception('Cannot replay the Root'
+        ' file.  ' + repr(backup_root_path) + ' must already exist.'
+        '  It can be created by calling backup_metadata(vin).')
+  else:
+    root_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        root_filename)
+    current_root_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        'current_' + root_filename)
+
+    # First backup the current root.
+    shutil.move(root_path, current_root_backup)
+    shutil.move(backup_root_path, root_path)
+
+  """
+  targets
+  """
+  targets_filename = 'targets.' + tuf.conf.METADATA_FORMAT
+  backup_targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'backup_' + targets_filename)
+
+  if not os.path.exists(backup_targets_path):
+    raise Exception('Cannot replay the Targets'
+        ' file.  ' + repr(backup_targets_path) + ' must already exist.'
+        '  It can be created by calling backup_metadata(vin).')
+  else:
+    targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        targets_filename)
+    current_targets_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        'current_' + targets_filename)
+
+    # First backup the current targets.
+    shutil.move(targets_path, current_targets_backup)
+    shutil.move(backup_targets_path, targets_path)
+
+
+
+def restore_metadata(vin):
+
+  """
+  # restore timestamp.der (first move current_timestamp.der to timestamp.der).
+
+  Example:
+  >>> import demo.demo_director as dd
+  >>> dd.clean_slate()
+  >>> dd.backup_timestamp('111')
+  >>> dd.replay_timestamp()
+  >>> dd.restore_timestamp()
+  """
+
+  """
+  timestamp
+  """
+  timestamp_filename = 'timestamp.' + tuf.conf.METADATA_FORMAT
+  current_timestamp_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'current_' + timestamp_filename)
+
+  if not os.path.exists(current_timestamp_backup):
+    raise Exception('A backup copy of the timestamp file'
+        ' could not be found.  Missing: ' + repr(current_timestamp_backup))
+  else:
+    timestamp_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        timestamp_filename)
+    shutil.move(current_timestamp_backup, timestamp_path)
+
+  """
+  snapshot
+  """
+  snapshot_filename = 'snapshot.' + tuf.conf.METADATA_FORMAT
+  current_snapshot_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'current_' + snapshot_filename)
+
+  if not os.path.exists(current_snapshot_backup):
+    raise Exception('A backup copy of the snapshot file'
+        ' could not be found.  Missing: ' + repr(current_snapshot_backup))
+  else:
+    snapshot_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        snapshot_filename)
+    shutil.move(current_snapshot_backup, snapshot_path)
+
+  """
+  root
+  """
+  root_filename = 'root.' + tuf.conf.METADATA_FORMAT
+  current_root_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'current_' + root_filename)
+
+  if not os.path.exists(current_root_backup):
+    raise Exception('A backup copy of the root file'
+        ' could not be found.  Missing: ' + repr(current_root_backup))
+  else:
+    root_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        root_filename)
+    shutil.move(current_root_backup, root_path)
+
+
+  """
+  targets
+  """
+  targets_filename = 'targets.' + tuf.conf.METADATA_FORMAT
+  current_targets_backup = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      'current_' + targets_filename)
+
+  if not os.path.exists(current_targets_backup):
+    raise Exception('A backup copy of the targets file'
+        ' could not be found.  Missing: ' + repr(current_targets_backup))
+  else:
+    targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
+        targets_filename)
+    shutil.move(current_targets_backup, targets_path)
+

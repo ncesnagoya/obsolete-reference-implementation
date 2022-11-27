@@ -297,7 +297,8 @@ def update_cycle():
   # only triggered for bad Timestamp metadata, and all other exception are
   # re-raised.
   except tuf.NoWorkingMirrorError as exception:
-    director_file = os.path.join(_vin, 'metadata', 'timestamp' + demo.METADATA_EXTENSION)
+    #director_file = os.path.join(_vin, 'metadata', 'timestamp' + demo.METADATA_EXTENSION)
+    director_file = os.path.join(_vin, 'metadata', 'root' + demo.METADATA_EXTENSION)
     for mirror_url in exception.mirror_errors:
       if mirror_url.endswith(director_file):
         if isinstance(exception.mirror_errors[mirror_url], tuf.ReplayedMetadataError):
