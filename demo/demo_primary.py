@@ -297,8 +297,7 @@ def update_cycle():
   # only triggered for bad Timestamp metadata, and all other exception are
   # re-raised.
   except tuf.NoWorkingMirrorError as exception:
-    #director_file = os.path.join(_vin, 'metadata', 'timestamp' + demo.METADATA_EXTENSION)
-    director_file = os.path.join(_vin, 'metadata', 'root' + demo.METADATA_EXTENSION)
+    director_file = os.path.join(_vin, 'metadata', 'timestamp' + demo.METADATA_EXTENSION)
     for mirror_url in exception.mirror_errors:
       if mirror_url.endswith(director_file):
         if isinstance(exception.mirror_errors[mirror_url], tuf.ReplayedMetadataError):
@@ -315,6 +314,23 @@ def update_cycle():
 
         else:
           raise
+      
+      else:
+        if isinstance(exception.mirror_errors[mirror_url], tuf.ReplayedMetadataError):
+          print_banner(BANNER_REPLAY, color=WHITE+BLACK_BG,
+              text='The Director has instructed us to download a Timestamp'
+              ' that is older than the currently trusted version. This'
+              ' instruction has been rejected.', sound=TADA)
+
+        elif isinstance(exception.mirror_errors[mirror_url], tuf.BadSignatureError):
+          print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download a Timestamp'
+              ' that is signed with keys that are untrusted.  This metadata has'
+              ' been rejected.', sound=TADA)
+
+        else:
+          raise
+
 
   # All targets have now been downloaded.
 
