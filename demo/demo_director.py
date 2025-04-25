@@ -1833,3 +1833,14 @@ def restore_metadata(vin):
         targets_filename)
     shutil.move(current_targets_backup, targets_path)
 
+
+# 2025.04.23 nosho in-totoで作成したファイルをdirector repoに格納
+def delivering_an_in_toto(ecu_serial):
+  firmware_fname = os.path.join(
+      '..', 'in-toto', 'final_product', 'bin', 'update.out')
+  filepath_in_repo = 'update.out'
+  vin='democar'
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
+  write_to_live(vin_to_update=vin)
+
+  return

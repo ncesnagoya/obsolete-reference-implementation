@@ -656,3 +656,16 @@ def convert_metadata_json_to_der(rolename):
   fileobject.write(written_metadata_content)
   fileobject.close()
   return
+
+
+# 2025.04.23 nosho in-totoで作成したファイルをimage repoに格納
+#  di.delivering_an_in_toto() /home/vagrant/demo/final_product/bin/update.out
+def delivering_an_in_toto():
+    print("実行カレントディレクトリ:", os.getcwd())
+    firmware_fname = os.path.join(
+      '..', 'in-toto', 'final_product', 'bin', 'update.out')
+    filepath_in_repo = 'update.out'
+    add_target_to_imagerepo(firmware_fname, filepath_in_repo)
+    write_to_live()
+
+    return
