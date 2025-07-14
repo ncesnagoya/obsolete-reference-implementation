@@ -147,7 +147,7 @@ def clean_slate(repo_dir='imagerepo', use_new_keys=False):
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.0.txt'), 'BCU1.0.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.1.txt'), 'BCU1.1.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.2.txt'), 'BCU1.2.txt')
-  add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
+  # add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 
@@ -163,7 +163,7 @@ def clean_slate(repo_dir='imagerepo', use_new_keys=False):
 def write_to_live():
 
   global repo
-
+  print("repo", repo)
   # Write the metadata files out to the Image Repository's 'metadata.staged'
   #repo.mark_dirty(['timestamp', 'snapshot'])
   repo.mark_dirty(['timestamp', 'snapshot', 'root'])
@@ -606,10 +606,14 @@ def kill_server():
     server_process.kill()
     server_process = None
 
-
-def delivering_an_update():
-  firmware_fname = filepath_in_repo = 'firmware.img'
-  open(firmware_fname, 'w').write('Fresh firmware image')
+# 2025.07.14 nosho targetファイルを指定できるように変更指定なしはfirmware.img
+def delivering_an_update(target='firmware.img'):
+  print("repo", repo)
+  firmware_fname = os.path.join(demo.IMAGE_REPO_DIR, target)
+  filepath_in_repo = target
+  if not os.path.isfile(firmware_fname):
+      print(f"[INFO] {firmware_fname} が存在しません。ファイルを作成します。")
+      open(firmware_fname, 'w').write('Fresh firmware image')
   add_target_to_imagerepo(firmware_fname, filepath_in_repo)
   write_to_live()
 
@@ -675,3 +679,28 @@ def delivering_an_in_toto():
     write_to_live()
 
     return
+
+
+# 2025.07.14 nosho repoの初期化
+def init_repo():
+  global repo
+  repo = rt.load_repository(demo.IMAGE_REPO_NAME)
+
+  key_root_pub = demo.import_public_key('mainroot')
+  key_root_pri = demo.import_private_key('mainroot')
+  key_timestamp_pub = demo.import_public_key('maintimestamp')
+  key_timestamp_pri = demo.import_private_key('maintimestamp')
+  key_snapshot_pub = demo.import_public_key('mainsnapshot')
+  key_snapshot_pri = demo.import_private_key('mainsnapshot')
+  key_targets_pub = demo.import_public_key('maintargets')
+  key_targets_pri = demo.import_private_key('maintargets')
+
+  # Add top level keys to the main repository.
+  repo.root.add_verification_key(key_root_pub)
+  repo.timestamp.add_verification_key(key_timestamp_pub)
+  repo.snapshot.add_verification_key(key_snapshot_pub)
+  repo.targets.add_verification_key(key_targets_pub)
+  repo.root.load_signing_key(key_root_pri)
+  repo.timestamp.load_signing_key(key_timestamp_pri)
+  repo.snapshot.load_signing_key(key_snapshot_pri)
+  repo.targets.load_signing_key(key_targets_pri)
