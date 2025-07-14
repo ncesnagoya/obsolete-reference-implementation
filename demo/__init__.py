@@ -18,7 +18,8 @@ HOSTING = '0.0.0.0'
 
 METADATA_EXTENSION = '.' + tuf.conf.METADATA_FORMAT
 
-DEMO_DIR = os.path.join(uptane.WORKING_DIR, 'demo')
+UPTANE_DIR = os.path.join(uptane.WORKING_DIR, 'uptane')
+DEMO_DIR = os.path.join(UPTANE_DIR, 'demo')
 DEMO_KEYS_DIR = os.path.join(DEMO_DIR, 'keys')
 # Pinning files are still always JSON.
 DEMO_PINNING_FNAME = os.path.join(DEMO_DIR, 'pinned.json')
@@ -27,7 +28,7 @@ DEMO_PRIMARY_PINNING_FNAME = os.path.join(DEMO_DIR, 'pinned_primary_template.jso
 
 IMAGE_REPO_HOST = HOSTING
 IMAGE_REPO_PORT = 30301
-IMAGE_REPO_NAME = 'imagerepo'
+IMAGE_REPO_NAME = 'image_repo'
 IMAGE_REPO_DIR = os.path.join(uptane.WORKING_DIR, IMAGE_REPO_NAME)
 IMAGE_REPO_TARGETS_DIR = os.path.join(IMAGE_REPO_DIR, 'targets')
 IMAGE_REPO_ROOT_FNAME = os.path.join(
@@ -35,7 +36,7 @@ IMAGE_REPO_ROOT_FNAME = os.path.join(
 
 DIRECTOR_REPO_HOST = HOSTING
 DIRECTOR_REPO_PORT = 30401
-DIRECTOR_REPO_NAME = 'director'
+DIRECTOR_REPO_NAME = 'director_repo'
 DIRECTOR_REPO_DIR = os.path.join(uptane.WORKING_DIR, DIRECTOR_REPO_NAME)
 
 DIRECTOR_SERVER_HOST = HOSTING

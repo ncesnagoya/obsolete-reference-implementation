@@ -56,12 +56,16 @@ repo = None
 server_process = None
 xmlrpc_service_thread = None
 
-
-def clean_slate(use_new_keys=False):
+# 2025.07.10 nosho 出力先のパス設定を指定できるように変更
+def clean_slate(repo_dir='imagerepo', use_new_keys=False):
 
   global repo
 
   print(LOG_PREFIX + 'Initializing repository')
+
+  # 2025.07.10 nosho 出力先のパス設定を上書き
+  demo.IMAGE_REPO_NAME = repo_dir
+  demo.IMAGE_REPO_TARGETS_DIR = os.path.join(repo_dir, 'targets')
 
   # Create target files: file1.txt and infotainment_firmware.txt
 
@@ -134,14 +138,16 @@ def clean_slate(use_new_keys=False):
 
 
   # Add some starting image files, primarily for use with the web frontend.
-  add_target_to_imagerepo('demo/images/INFO1.0.txt', 'INFO1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.0.txt', 'TCU1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.1.txt', 'TCU1.1.txt')
-  add_target_to_imagerepo('demo/images/TCU1.2.txt', 'TCU1.2.txt')
-  add_target_to_imagerepo('demo/images/BCU1.0.txt', 'BCU1.0.txt')
-  add_target_to_imagerepo('demo/images/BCU1.1.txt', 'BCU1.1.txt')
-  add_target_to_imagerepo('demo/images/BCU1.2.txt', 'BCU1.2.txt')
-
+  # 2025.07.10 nosho targetsの保存先を指定
+  IMAGES_DIR = os.path.join(demo.DEMO_DIR, 'images')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'INFO1.0.txt'), 'INFO1.0.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'TCU1.0.txt'), 'TCU1.0.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'TCU1.1.txt'), 'TCU1.1.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'TCU1.2.txt'), 'TCU1.2.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.0.txt'), 'BCU1.0.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.1.txt'), 'BCU1.1.txt')
+  add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.2.txt'), 'BCU1.2.txt')
+  add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 

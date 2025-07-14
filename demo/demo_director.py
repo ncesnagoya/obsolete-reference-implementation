@@ -79,13 +79,16 @@ def clean_slate(use_new_keys=False):
 
   global director_service_instance
 
-
-  director_dir = os.path.join(uptane.WORKING_DIR, 'director')
+  # 25.07.14 nosho 初期化時に削除するディレクトリを指定
+  director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
+  dirs_to_remove = ['111', '112', '113', 'democar']
 
   # Create a directory for the Director's files.
-  if os.path.exists(director_dir):
-    shutil.rmtree(director_dir)
-  os.makedirs(director_dir)
+  for d in dirs_to_remove:
+  # if os.path.exists(director_dir):
+    if os.path.exists(d):
+      shutil.rmtree(d)
+  # os.makedirs(director_dir)
 
 
   # Create keys and/or load keys into memory.
@@ -123,6 +126,7 @@ def clean_slate(use_new_keys=False):
       key_targets_pub=key_dirtarg_pub)
 
   for vin in KNOWN_VINS:
+    print("vin", vin)
     director_service_instance.add_new_vehicle(vin)
 
   # You can tell the Director about ECUs this way:
@@ -139,6 +143,7 @@ def clean_slate(use_new_keys=False):
   # the Image Repository.
   for vin in inventory.ecus_by_vin:
     for ecu in inventory.ecus_by_vin[vin]:
+      print("directorのtargets:", ecu, demo.IMAGE_REPO_TARGETS_DIR)        
       add_target_to_director(
           os.path.join(demo.IMAGE_REPO_TARGETS_DIR, 'infotainment_firmware.txt'),
           'infotainment_firmware.txt',
