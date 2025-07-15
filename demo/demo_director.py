@@ -77,10 +77,10 @@ director_service_thread = None
 
 def clean_slate(use_new_keys=False):
 
-  global director_service_instance
+  # global director_service_instance
 
-  # 25.07.14 nosho 初期化時に削除するディレクトリを指定
-  director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
+  # # 25.07.14 nosho 初期化時に削除するディレクトリを指定
+  # director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
   dirs_to_remove = ['111', '112', '113', 'democar']
 
   # Create a directory for the Director's files.
@@ -101,33 +101,36 @@ def clean_slate(use_new_keys=False):
     demo.generate_key('directorsnapshot')
     demo.generate_key('director') # targets
 
-  key_dirroot_pub = demo.import_public_key('directorroot')
-  key_dirroot_pri = demo.import_private_key('directorroot')
-  key_dirtime_pub = demo.import_public_key('directortimestamp')
-  key_dirtime_pri = demo.import_private_key('directortimestamp')
-  key_dirsnap_pub = demo.import_public_key('directorsnapshot')
-  key_dirsnap_pri = demo.import_private_key('directorsnapshot')
-  key_dirtarg_pub = demo.import_public_key('director')
-  key_dirtarg_pri = demo.import_private_key('director')
+  #2025.07.15 nosho ディレクトリの指定、鍵のimportは以下の関数にまとめた
+  init_repo()
+
+  # key_dirroot_pub = demo.import_public_key('directorroot')
+  # key_dirroot_pri = demo.import_private_key('directorroot')
+  # key_dirtime_pub = demo.import_public_key('directortimestamp')
+  # key_dirtime_pri = demo.import_private_key('directortimestamp')
+  # key_dirsnap_pub = demo.import_public_key('directorsnapshot')
+  # key_dirsnap_pri = demo.import_private_key('directorsnapshot')
+  # key_dirtarg_pub = demo.import_public_key('director')
+  # key_dirtarg_pri = demo.import_private_key('director')
 
 
-  print(LOG_PREFIX + 'Initializing vehicle repositories')
+  # print(LOG_PREFIX + 'Initializing vehicle repositories')
 
-  # Create the demo Director instance.
-  director_service_instance = director.Director(
-      director_repos_dir=director_dir,
-      key_root_pri=key_dirroot_pri,
-      key_root_pub=key_dirroot_pub,
-      key_timestamp_pri=key_dirtime_pri,
-      key_timestamp_pub=key_dirtime_pub,
-      key_snapshot_pri=key_dirsnap_pri,
-      key_snapshot_pub=key_dirsnap_pub,
-      key_targets_pri=key_dirtarg_pri,
-      key_targets_pub=key_dirtarg_pub)
+  # # Create the demo Director instance.
+  # director_service_instance = director.Director(
+  #     director_repos_dir=director_dir,
+  #     key_root_pri=key_dirroot_pri,
+  #     key_root_pub=key_dirroot_pub,
+  #     key_timestamp_pri=key_dirtime_pri,
+  #     key_timestamp_pub=key_dirtime_pub,
+  #     key_snapshot_pri=key_dirsnap_pri,
+  #     key_snapshot_pub=key_dirsnap_pub,
+  #     key_targets_pri=key_dirtarg_pri,
+  #     key_targets_pub=key_dirtarg_pub)
 
-  for vin in KNOWN_VINS:
-    print("vin", vin)
-    director_service_instance.add_new_vehicle(vin)
+  # for vin in KNOWN_VINS:
+  #   print("vin", vin)
+  #   director_service_instance.add_new_vehicle(vin)
 
   # You can tell the Director about ECUs this way:
   # test_ecu_public_key = demo.import_public_key('secondary')
@@ -143,7 +146,7 @@ def clean_slate(use_new_keys=False):
   # the Image Repository.
   for vin in inventory.ecus_by_vin:
     for ecu in inventory.ecus_by_vin[vin]:
-      print("directorのtargets:", ecu, demo.IMAGE_REPO_TARGETS_DIR)        
+      print("directorのtargets:", ecu, demo.IMAGE_REPO_TARGETS_DIR)
       add_target_to_director(
           os.path.join(demo.IMAGE_REPO_TARGETS_DIR, 'infotainment_firmware.txt'),
           'infotainment_firmware.txt',
@@ -1245,8 +1248,10 @@ def kill_server():
     repo_server_process = None
 
 
-def delivering_an_update(ecu_serial):
-  firmware_fname = filepath_in_repo = 'firmware.img'
+def delivering_an_update(ecu_serial, target="firmware.img"):
+  # 本来はimagerepoからtargetとってくる
+  firmware_fname = os.path.join(demo.DIRECTOR_REPO_DIR, target)
+  filepath_in_repo = target
   vin='democar'
   add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
   write_to_live(vin_to_update=vin)
@@ -1849,3 +1854,39 @@ def delivering_an_in_toto(ecu_serial):
   write_to_live(vin_to_update=vin)
 
   return
+
+
+# 2025.07.14 nosho 初期化関数用意
+def init_repo():
+  global director_service_instance
+
+  # 25.07.14 nosho 初期化時に削除するディレクトリを指定
+  director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
+
+  key_dirroot_pub = demo.import_public_key('directorroot')
+  key_dirroot_pri = demo.import_private_key('directorroot')
+  key_dirtime_pub = demo.import_public_key('directortimestamp')
+  key_dirtime_pri = demo.import_private_key('directortimestamp')
+  key_dirsnap_pub = demo.import_public_key('directorsnapshot')
+  key_dirsnap_pri = demo.import_private_key('directorsnapshot')
+  key_dirtarg_pub = demo.import_public_key('director')
+  key_dirtarg_pri = demo.import_private_key('director')
+
+  print(LOG_PREFIX + 'Initializing vehicle repositories')
+
+  # Create the demo Director instance.
+  director_service_instance = director.Director(
+    director_repos_dir=director_dir,
+    key_root_pri=key_dirroot_pri,
+    key_root_pub=key_dirroot_pub,
+    key_timestamp_pri=key_dirtime_pri,
+    key_timestamp_pub=key_dirtime_pub,
+    key_snapshot_pri=key_dirsnap_pri,
+    key_snapshot_pub=key_dirsnap_pub,
+    key_targets_pri=key_dirtarg_pri,
+    key_targets_pub=key_dirtarg_pub)
+
+  for vin in KNOWN_VINS:
+    # print("vin", vin)
+    director_service_instance.add_new_vehicle(vin)
+      
