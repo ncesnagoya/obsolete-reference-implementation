@@ -69,7 +69,7 @@ def load_timeserver_key(use_new_keys=False):
 
 
 
-def get_signed_time_der_wrapper(nonces):
+def get_signed_time_der_wrapper(nonces, use_ntp=False):
   """
   Encapsulates the binary data of the DER encoding of the timeserver attestation
   in an XMLPRC Binary object, for delivery via XMLRPC within the demo.
@@ -78,7 +78,7 @@ def get_signed_time_der_wrapper(nonces):
   Uptane Python dictionary format.
   """
 
-  der_attestation = timeserver.get_signed_time_der(nonces)
+  der_attestation = timeserver.get_signed_time_der(nonces, use_ntp=use_ntp)
 
   return xmlrpc_client.Binary(der_attestation)
 
