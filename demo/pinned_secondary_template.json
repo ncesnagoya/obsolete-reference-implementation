@@ -1,16 +1,16 @@
 {
   "repositories": {
-    "imagerepo": {
-      "mirrors": ["file:///<full_client_dir>/unverified/imagerepo"]
+    "image_repo": {
+      "mirrors": ["file:///<full_client_dir>/unverified/image_repo"]
     },
-    "director": {
-      "mirrors": ["file:///<full_client_dir>/unverified/director"]
+    "director_repo": {
+      "mirrors": ["file:///<full_client_dir>/unverified/director_repo"]
     }
   },
   "delegations": [
     {
       "paths": ["*"],
-      "repositories": ["director", "imagerepo"]
+      "repositories": ["director_repo", "image_repo"]
     }
   ]
 }

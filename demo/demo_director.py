@@ -158,6 +158,8 @@ def clean_slate(use_new_keys=False):
   write_to_live()
 
   host()
+  # demo_director.py の listen() より前に
+  # print("Director instance:", director_service_instance)
 
   listen()
 
@@ -685,8 +687,8 @@ def host():
   if sys.version_info.major < 3: # Python 2 compatibility
     command = ['python', '-m', 'SimpleHTTPServer', str(demo.DIRECTOR_REPO_PORT)]
   else:
-    command = ['python3', '-m', 'http.server', str(demo.DIRECTOR_REPO_PORT)]
-
+    command = ['python3', '-m', 'http.server', str(demo.DIRECTOR_REPO_PORT),
+               '--bind', '0.0.0.0']
 
   # Begin hosting the director's repository.
 
@@ -700,7 +702,7 @@ def host():
       demo.DIRECTOR_REPO_HOST + ':' + str(demo.DIRECTOR_REPO_PORT) + '/')
 
   # Kill server process after calling exit().
-  atexit.register(kill_server)
+  # atexit.register(kill_server)
 
   # Wait / allow any exceptions to kill the server.
   # try:
@@ -768,8 +770,12 @@ def listen():
   global director_service_thread
 
   if director_service_thread is not None:
-    print(LOG_PREFIX + 'Sorry: there is already a Director service thread '
-        'listening.')
+    if director_service_thread.is_alive():
+      print(LOG_PREFIX + 'Sorry: there is already a Director service thread '
+            'listening.')
+    else:
+      # スレッドは存在しているが終了しているので再生成
+      print(LOG_PREFIX + 'Previous Director thread not alive. Restarting...')
     return
 
   # Create server
@@ -1889,4 +1895,4 @@ def init_repo():
   for vin in KNOWN_VINS:
     # print("vin", vin)
     director_service_instance.add_new_vehicle(vin)
-      
+  

@@ -235,11 +235,10 @@ def host():
   if sys.version_info.major < 3:  # Python 2 compatibility
     command = ['python', '-m', 'SimpleHTTPServer', str(demo.IMAGE_REPO_PORT)]
   else:
-    command = ['python3', '-m', 'http.server', str(demo.IMAGE_REPO_PORT)]
-
+    command = ['python3', '-m', 'http.server', str(demo.IMAGE_REPO_PORT),
+               '--bind', '0.0.0.0']
 
   # Begin hosting Image Repository.
-
   server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
 
   os.chdir(uptane.WORKING_DIR)
@@ -250,7 +249,7 @@ def host():
       demo.IMAGE_REPO_HOST + ':' + str(demo.IMAGE_REPO_PORT) + '/')
 
   # Kill server process after calling exit().
-  atexit.register(kill_server)
+  # atexit.register(kill_server)
 
   # Wait / allow any exceptions to kill the server.
   #try:
