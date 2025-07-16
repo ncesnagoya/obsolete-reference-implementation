@@ -773,8 +773,8 @@ def create_client_structure(director_ip, image_ip):
     global CLIENT_DIRECTORY
 
     CLIENT_DIRECTORY = os.path.join(
-        uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5)
-    )
+        demo.PRIMARY_SERVER_DIR,
+        CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
     if os.path.exists(CLIENT_DIRECTORY):
         shutil.rmtree(CLIENT_DIRECTORY)
