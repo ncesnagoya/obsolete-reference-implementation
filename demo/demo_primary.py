@@ -736,7 +736,7 @@ def looping_update():
     time.sleep(1)
 
 
-def init_primary(use_new_keys=False):
+def init_primary(client_dir, use_new_keys=False):
   global primary_ecu
 
   # Initialize a Primary ECU, making a client directory and copying the root
@@ -754,7 +754,7 @@ def init_primary(use_new_keys=False):
     load_or_generate_key(use_new_keys)
 
     primary_ecu = primary.Primary(
-        full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
+        full_client_dir=client_dir,
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=_vin,
         ecu_serial=_ecu_serial,
