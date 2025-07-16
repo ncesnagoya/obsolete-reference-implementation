@@ -783,8 +783,8 @@ def create_client_structure(director_ip, image_ip):
 
     # 2025.07.15 nosho pinned.jsonを動的に作成
     pinning_fname = create_primary_pinning_file(director_ip, image_ip)
-    # pinned.json: シンボリックリンクを貼る（事前に作成・コピー済み前提）
-    os.symlink(
+    # pinned.json: コピーする
+    shutil.copy(
         pinning_fname,
         os.path.join(CLIENT_DIRECTORY, 'metadata', 'pinned.json'))
 
