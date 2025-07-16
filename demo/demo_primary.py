@@ -105,22 +105,24 @@ def clean_slate(
   CLIENT_DIRECTORY = os.path.join(
       uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
-  # Load the public timeserver key.
-  key_timeserver_pub = demo.import_public_key('timeserver')
+# 2025.07.16 nosho init_primary()にまとめ
+  # # Load the public timeserver key.
+  # key_timeserver_pub = demo.import_public_key('timeserver')
 
-  # Generate a trusted initial time for the Primary.
-  clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
-  clock = clock.isoformat() + 'Z'
-  tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+  # # Generate a trusted initial time for the Primary.
+  # clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+  # clock = clock.isoformat() + 'Z'
+  # tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
 
-  # Load the private key for this Primary ECU.
-  load_or_generate_key(use_new_keys)
+  # # Load the private key for this Primary ECU.
+  # load_or_generate_key(use_new_keys)
 
   # Craft the directory structure for the client directory, including the
   # creation of repository metadata directories, current and previous, putting
   # the pinning.json file in place, etc. First, schedule the deletion of this
   # directory to occur when the script ends (so that it's deleted even if an
   # error occurs here).
+
   # 2025.07.15 nosho pinned.jsonを動的に作成
   pinned_file_path = create_primary_pinning_file(director_ip, image_ip)
 
@@ -147,17 +149,18 @@ def clean_slate(
   # metadata it has collected from each repository, in subdirectories).
   tuf.conf.repository_directory = CLIENT_DIRECTORY
 
-  # Initialize a Primary ECU, making a client directory and copying the root
-  # file from the repositories.
-  primary_ecu = primary.Primary(
-      full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
-      director_repo_name=demo.DIRECTOR_REPO_NAME,
-      vin=_vin,
-      ecu_serial=_ecu_serial,
-      primary_key=ecu_key,
-      time=clock,
-      timeserver_public_key=key_timeserver_pub)
-
+  # 2025.07.16 nosho init_primary()にまとめ
+  # # Initialize a Primary ECU, making a client directory and copying the root
+  # # file from the repositories.
+  # primary_ecu = primary.Primary(
+  #     full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
+  #     director_repo_name=demo.DIRECTOR_REPO_NAME,
+  #     vin=_vin,
+  #     ecu_serial=_ecu_serial,
+  #     primary_key=ecu_key,
+  #     time=clock,
+  #     timeserver_public_key=key_timeserver_pub)
+  init_primary(use_new_keys)
 
   if listener_thread is None:
     listener_thread = threading.Thread(target=listen)
@@ -708,9 +711,6 @@ def clean_up_temp_file(filename):
     os.remove(filename)
 
 
-
-
-
 def clean_up_temp_folder():
   """
   Deletes the temp directory created by the demo
@@ -719,14 +719,8 @@ def clean_up_temp_folder():
     shutil.rmtree(CLIENT_DIRECTORY)
 
 
-
-
-
 def try_banners():
   preview_all_banners()
-
-
-
 
 
 def looping_update():
@@ -736,3 +730,30 @@ def looping_update():
     except Exception as e:
       print(repr(e))
     time.sleep(1)
+
+
+def init_primary(use_new_keys=False):
+  global primary_ecu
+
+  # Initialize a Primary ECU, making a client directory and copying the root
+  # file from the repositories.
+  if primary_ecu is None:
+    # Load the public timeserver key.
+    key_timeserver_pub = demo.import_public_key('timeserver')
+
+    # Generate a trusted initial time for the Primary.
+    clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+    clock = clock.isoformat() + 'Z'
+    tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+
+    # Load the private key for this Primary ECU.
+    load_or_generate_key(use_new_keys)
+
+    primary_ecu = primary.Primary(
+        full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
+        director_repo_name=demo.DIRECTOR_REPO_NAME,
+        vin=_vin,
+        ecu_serial=_ecu_serial,
+        primary_key=ecu_key,
+        time=clock,
+        timeserver_public_key=key_timeserver_pub)
