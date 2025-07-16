@@ -103,7 +103,7 @@ def get_signed_time(nonces, use_ntp=True):
   time_attestation = get_time(nonces, use_ntp=use_ntp)
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
-  uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_TrueSCHEMA.check_match(
+  uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
       signable_time_attestation)
 
   uptane.common.sign_signable(
