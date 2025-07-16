@@ -69,7 +69,7 @@ def load_timeserver_key(use_new_keys=False):
 
 
 
-def get_signed_time_der_wrapper(nonces, use_ntp=True):
+def get_signed_time_der_wrapper(nonces, use_ntp=False):
   """
   Encapsulates the binary data of the DER encoding of the timeserver attestation
   in an XMLPRC Binary object, for delivery via XMLRPC within the demo.
@@ -122,7 +122,7 @@ def listen(use_new_keys=False):
   print(LOG_PREFIX + 'Timeserver will now listen on port ' +
       str(demo.TIMESERVER_PORT))
 
-  timeserver_listener_thread = threading.ThreaTrued(target=server.serve_forever)
+  timeserver_listener_thread = threading.Thread(target=server.serve_forever)
   timeserver_listener_thread.setDaemon(True)
   timeserver_listener_thread.start()
 
