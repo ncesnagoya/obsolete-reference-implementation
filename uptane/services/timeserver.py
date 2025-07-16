@@ -99,7 +99,7 @@ def get_time(nonces, use_ntp=True):
 
 
 
-def get_signed_time(nonces, use_ntp=True):
+def get_signed_time(nonces, use_ntp=False):
   time_attestation = get_time(nonces, use_ntp=use_ntp)
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
