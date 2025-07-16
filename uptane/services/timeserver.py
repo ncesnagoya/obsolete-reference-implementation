@@ -53,7 +53,7 @@ def set_timeserver_key(private_key):
 
 # 2025.05.15 nosho 追記　ntpサーバーから時刻取得し、JST(日本標準時)に変換して返す
 # tests/test_get_time.pyに単体テストコード
-def get_time(nonces, use_ntp=False):
+def get_time(nonces, use_ntp=True):
   """
   時刻を取得する関数。
   use_ntp=True の場合は NTPサーバーから取得し、失敗時にはローカル時刻へフォールバック。
@@ -68,18 +68,20 @@ def get_time(nonces, use_ntp=False):
   clock = None
 
   # 2025.05.15 nosho ntpサーバーライブラリ追加
-  if use_ntp:
-    try:
+  try:
+    if use_ntp:
       # ntpクライアント作成
       ntp_client = ntplib.NTPClient()
       # ntpサーバーから時刻を取得 (タイムアウトで内部から取得へ切替可能か確認する)
       response = ntp_client.request('ntp.nict.jp', version=3)
       clock = datetime.utcfromtimestamp(response.tx_time)
-      print("ntpサーバーから時刻取得", clock)
-
-    except Exception as e:
+      print("外部サーバーから時刻取得", clock)
+    else:
       clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
-      print("Unixタイムスタンプから時刻取得", e)      
+      print("ローカル時刻を使用", e)
+  except Exception as e:
+    clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+    print("外部サーバーから時刻取得失敗、ローカル時刻を使用", e)
 
   # Get the time, format it appropriately, and check the resulting format.
   # e.g. '2016-10-10T11:37:30Z'
@@ -97,11 +99,11 @@ def get_time(nonces, use_ntp=False):
 
 
 
-def get_signed_time(nonces, use_ntp=False):
+def get_signed_time(nonces, use_ntp=True):
   time_attestation = get_time(nonces, use_ntp=use_ntp)
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
-  uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
+  uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_TrueSCHEMA.check_match(
       signable_time_attestation)
 
   uptane.common.sign_signable(
@@ -116,7 +118,7 @@ def get_signed_time(nonces, use_ntp=False):
 
 
 
-def get_signed_time_der(nonces, use_ntp=False):
+def get_signed_time_der(nonces, use_ntp=True):
   """
   Same as get_signed_time, but converts the resulting Python dictionary into
   an ASN.1 representation, encodes it as DER (Distinguished Encoding Rules),
