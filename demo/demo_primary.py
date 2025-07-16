@@ -738,6 +738,7 @@ def looping_update():
 
 def init_primary(client_dir, use_new_keys=False):
   global primary_ecu
+  tuf.conf.repository_directory = client_dir
 
   # Initialize a Primary ECU, making a client directory and copying the root
   # file from the repositories.
