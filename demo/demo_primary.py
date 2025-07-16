@@ -127,23 +127,14 @@ def clean_slate(
   pinned_file_path = create_primary_pinning_file(director_ip, image_ip)
 
   atexit.register(clean_up_temp_folder)
-  
+
   # 2025.07.15 nosho root fileのパスを指定
   ROOTFILE_PATHS = {
     demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
     demo.DIRECTOR_REPO_NAME: os.path.join(
-      demo.DIRECTOR_REPO_DIR, vin, 'metadata', 'root' + demo.METADATA_EXTENSION)
+      demo.DIRECTOR_REPO_DIR, vin, 'metadata', 'root' + demo.METADATA_EXTENSION
+    )
   }
-  # 各 .der ファイルをチェックし、なければ空ファイルを作成
-  for repo, path in ROOTFILE_PATHS.items():
-    if not os.path.exists(path):
-        print(f"[INFO] {repo} の .der ファイルが見つかりません: {path}")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'wb') as f:
-            pass  # 空ファイル作成
-        print(f"[OK] 空の {repo} 用 root.der を作成しました。")
-    else:
-        print(f"[SKIP] {repo} の root.der は既に存在します。")
 
   try:
     uptane.common.create_directory_structure_for_client(
@@ -770,3 +761,39 @@ def init_primary(use_new_keys=False):
         primary_key=ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
+
+
+# 2025.07.16 nosho 複数VM用にディレクトリを作成する関数
+# （単体VM用はuptane.common.create_directory_structure_for_client()）
+def create_client_structure(director_ip, image_ip):
+    """
+    Create only the directory structure without copying any .der files.
+    Intended for distributed VM environments.
+    """
+    global CLIENT_DIRECTORY
+
+    CLIENT_DIRECTORY = os.path.join(
+        uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5)
+    )
+
+    if os.path.exists(CLIENT_DIRECTORY):
+        shutil.rmtree(CLIENT_DIRECTORY)
+    os.makedirs(os.path.join(CLIENT_DIRECTORY, 'metadata'))
+
+    # 2025.07.15 nosho pinned.jsonを動的に作成
+    pinning_fname = create_primary_pinning_file(director_ip, image_ip)
+    # pinned.json: シンボリックリンクを貼る（事前に作成・コピー済み前提）
+    os.symlink(
+        pinning_fname,
+        os.path.join(CLIENT_DIRECTORY, 'metadata', 'pinned.json'))
+
+    with open(pinning_fname) as fobj:
+        pinnings = json.load(fobj)
+
+    for repo_name in pinnings['repositories']:
+        os.makedirs(os.path.join(
+          CLIENT_DIRECTORY, 'metadata', repo_name, 'current'))
+        os.makedirs(os.path.join(
+          CLIENT_DIRECTORY, 'metadata', repo_name, 'previous'))
+
+    tuf.conf.repository_directory = CLIENT_DIRECTORY
