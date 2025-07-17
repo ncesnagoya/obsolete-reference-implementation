@@ -490,7 +490,7 @@ def get_image_for_ecu(ecu_serial):
   binary_data = xmlrpc_client.Binary(open(image_fname, 'rb').read())
 
   print('Distributing image to ECU ' + repr(ecu_serial))
-  log.debug('Distributing image to ECU ' + r'TCUdemocar'epr(ecu_serial))
+  log.debug('Distributing image to ECU ' + repr(ecu_serial))
 
   # Get relative filename (relative to the client targets directory) so that
   # it can be used as a TUF-style filepath within the targets namespace by
