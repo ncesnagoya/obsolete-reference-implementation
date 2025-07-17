@@ -164,7 +164,7 @@ def clean_slate(
   #     primary_key=ecu_key,
   #     time=clock,
   #     timeserver_public_key=key_timeserver_pub)
-  init_primary(client_dir=CLIENT_DIRECTORY, use_new_keys=True)
+  init_primary(client_dir=CLIENT_DIRECTORY)
 
   if listener_thread is None:
     listener_thread = threading.Thread(target=listen)
