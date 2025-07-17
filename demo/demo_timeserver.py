@@ -69,7 +69,7 @@ def load_timeserver_key(use_new_keys=False):
 
 
 
-def get_signed_time_der_wrapper(nonces, use_ntp=False):
+def get_signed_time_der_wrapper(nonces):
   """
   Encapsulates the binary data of the DER encoding of the timeserver attestation
   in an XMLPRC Binary object, for delivery via XMLRPC within the demo.
@@ -78,7 +78,7 @@ def get_signed_time_der_wrapper(nonces, use_ntp=False):
   Uptane Python dictionary format.
   """
 
-  der_attestation = timeserver.get_signed_time_der(nonces, use_ntp=use_ntp)
+  der_attestation = timeserver.get_signed_time_der(nonces)
 
   return xmlrpc_client.Binary(der_attestation)
 
@@ -117,7 +117,7 @@ def listen(use_new_keys=False):
   server.register_function(timeserver.get_signed_time, 'get_signed_time')
   server.register_function(
       get_signed_time_der_wrapper, 'get_signed_time_der')
-
+  print()
 
   print(LOG_PREFIX + 'Timeserver will now listen on port ' +
       str(demo.TIMESERVER_PORT))
@@ -125,6 +125,10 @@ def listen(use_new_keys=False):
   timeserver_listener_thread = threading.Thread(target=server.serve_forever)
   timeserver_listener_thread.setDaemon(True)
   timeserver_listener_thread.start()
+
+  # 2025.07.17 noshoポート開けたままに無限ループ
+  while(1):
+    {}
 
 
 

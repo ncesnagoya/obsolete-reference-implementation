@@ -249,7 +249,7 @@ def host():
       demo.IMAGE_REPO_HOST + ':' + str(demo.IMAGE_REPO_PORT) + '/')
 
   # Kill server process after calling exit().
-  # atexit.register(kill_server)
+  atexit.register(kill_server)
 
   # Wait / allow any exceptions to kill the server.
   #try:
@@ -329,6 +329,9 @@ def listen():
   xmlrpc_service_thread.setDaemon(True)
   xmlrpc_service_thread.start()
 
+  # 2025.07.17 noshoポート開けたままに無限ループ
+  while(1):
+    {}
 
 
 

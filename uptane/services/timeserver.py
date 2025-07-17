@@ -53,7 +53,7 @@ def set_timeserver_key(private_key):
 
 # 2025.05.15 nosho 追記　ntpサーバーから時刻取得し、JST(日本標準時)に変換して返す
 # tests/test_get_time.pyに単体テストコード
-def get_time(nonces, use_ntp=True):
+def get_time_ntp(nonces, use_ntp=True): # 関数名注意
   """
   時刻を取得する関数。
   use_ntp=True の場合は NTPサーバーから取得し、失敗時にはローカル時刻へフォールバック。
@@ -96,11 +96,25 @@ def get_time(nonces, use_ntp=True):
   return time_attestation
 
 
+def get_time(nonces):
+  uptane.formats.NONCE_LIST_SCHEMA.check_match(nonces)
+
+  # Get the time, format it appropriately, and check the resulting format.
+  # e.g. '2016-10-10T11:37:30Z'
+  clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+  clock = clock.isoformat() + 'Z'
+  tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+
+  time_attestation = {
+    'time': clock,
+    'nonces': nonces
+  }
+
+  return time_attestation
 
 
-
-def get_signed_time(nonces, use_ntp=False):
-  time_attestation = get_time(nonces, use_ntp=use_ntp)
+def get_signed_time(nonces):
+  time_attestation = get_time_ntp(nonces)
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
   uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
@@ -118,7 +132,7 @@ def get_signed_time(nonces, use_ntp=False):
 
 
 
-def get_signed_time_der(nonces, use_ntp=True):
+def get_signed_time_der(nonces):
   """
   Same as get_signed_time, but converts the resulting Python dictionary into
   an ASN.1 representation, encodes it as DER (Distinguished Encoding Rules),
@@ -128,7 +142,7 @@ def get_signed_time_der(nonces, use_ntp=True):
   if not PYASN1_EXISTS:
     raise uptane.Error('This Timeserver does not support DER: pyasn1 is not '
         'installed.')
-  time_attestation = get_time(nonces, use_ntp=use_ntp)
+  time_attestation = get_time(nonces)
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
   uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(

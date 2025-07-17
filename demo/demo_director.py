@@ -702,7 +702,7 @@ def host():
       demo.DIRECTOR_REPO_HOST + ':' + str(demo.DIRECTOR_REPO_PORT) + '/')
 
   # Kill server process after calling exit().
-  # atexit.register(kill_server)
+  atexit.register(kill_server)
 
   # Wait / allow any exceptions to kill the server.
   # try:
@@ -853,7 +853,9 @@ def listen():
   director_service_thread.setDaemon(True)
   director_service_thread.start()
 
-
+  # 2025.07.17 noshoポート開けたままに無限ループ
+  while(1):
+    {}
 
 
 
