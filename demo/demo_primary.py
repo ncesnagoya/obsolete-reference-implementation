@@ -164,7 +164,7 @@ def clean_slate(
   #     primary_key=ecu_key,
   #     time=clock,
   #     timeserver_public_key=key_timeserver_pub)
-  init_primary(use_new_keys)
+  init_primary(client_dir=CLIENT_DIRECTORY, use_new_keys)
 
   if listener_thread is None:
     listener_thread = threading.Thread(target=listen)
@@ -490,7 +490,7 @@ def get_image_for_ecu(ecu_serial):
   binary_data = xmlrpc_client.Binary(open(image_fname, 'rb').read())
 
   print('Distributing image to ECU ' + repr(ecu_serial))
-  log.debug('Distributing image to ECU ' + repr(ecu_serial))
+  log.debug('Distributing image to ECU ' + r'TCUdemocar'epr(ecu_serial))
 
   # Get relative filename (relative to the client targets directory) so that
   # it can be used as a TUF-style filepath within the targets namespace by
