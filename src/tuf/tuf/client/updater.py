@@ -243,6 +243,7 @@ class Updater(object):
     # which targets should be sought from which repository(/ies).
     self._load_pinned_metadata(os.path.join(
         client_repositories_directory, 'metadata', 'pinned.json')) # Always JSON
+    print("★client_repositories_directory", client_repositories_directory)      
 
     # This is where the SingleRepoUpdater objects are stored, indexed by
     # repository name.
@@ -324,7 +325,7 @@ class Updater(object):
     """
     if repo_name is not None:
       self._validate_repo_name(repo_name)
-      print("repo_name:  ",  repo_name)
+      print("self.repositories[repo_name]:  ",  self.repositories[repo_name])
       self.repositories[repo_name].refresh()
 
     else:
@@ -1755,7 +1756,7 @@ class SingleRepoUpdater(object):
     # file_mirror (URL): error (Exception)
     file_mirror_errors = {}
     file_object = None
-
+    print("file_mirrors", file_mirrors)
     for file_mirror in file_mirrors:
       try:
         file_object = tuf.download.unsafe_download(file_mirror,
@@ -1821,6 +1822,7 @@ class SingleRepoUpdater(object):
       return file_object
     
     else:
+      print("remote_filename", remote_filename)
       logger.error('Failed to update {0} from all mirrors: {1}'.format(
                        remote_filename, file_mirror_errors))
       raise tuf.NoWorkingMirrorError(file_mirror_errors)
@@ -2073,7 +2075,7 @@ class SingleRepoUpdater(object):
 
     metadata_filename = metadata_role + '.' + tuf.conf.METADATA_FORMAT
 
-
+    print("metadata_filename", metadata_filename)
     uncompressed_metadata_filename = metadata_filename
    
     # The 'snapshot' or Targets metadata may be compressed.  Add the appropriate

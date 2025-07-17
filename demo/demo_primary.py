@@ -86,11 +86,7 @@ def clean_slate(
     use_new_keys=False,
     # client_directory_name=None,
     vin=_vin,
-    ecu_serial=_ecu_serial,
-    # 2025.07.15 nosho 単体VM,複数VMどちらでも実行できるように修正
-    director_ip='localhost',
-    image_ip='localhost'
-  ):
+    ecu_serial=_ecu_serial):
   """
   """
   global primary_ecu
@@ -98,14 +94,15 @@ def clean_slate(
   global _vin
   global _ecu_serial
   global listener_thread
-
   _vin = vin
   _ecu_serial = ecu_serial
 
+  # if client_directory_name is not None:
+  #   CLIENT_DIRECTORY = client_directory_name
+  # else:
+  # 2025.07.17 nosho primarydirの生成先を/home/vagrant/scudo/primaryに
   CLIENT_DIRECTORY = os.path.join(
-      uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
-
-# 2025.07.16 nosho init_primary()にまとめ
+    demo.PRIMARY_REPO_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
 
@@ -116,44 +113,31 @@ def clean_slate(
 
   # Load the private key for this Primary ECU.
   load_or_generate_key(use_new_keys)
-
   # Craft the directory structure for the client directory, including the
   # creation of repository metadata directories, current and previous, putting
   # the pinning.json file in place, etc. First, schedule the deletion of this
   # directory to occur when the script ends (so that it's deleted even if an
   # error occurs here).
-
-  # 2025.07.15 nosho pinned.jsonを動的に作成
-  pinned_file_path = create_primary_pinning_file(director_ip, image_ip)
-
   atexit.register(clean_up_temp_folder)
-
-  # 2025.07.15 nosho root fileのパスを指定
-  ROOTFILE_PATHS = {
-    demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
-    demo.DIRECTOR_REPO_NAME: os.path.join(
-      demo.DIRECTOR_REPO_DIR, vin, 'metadata', 'root' + demo.METADATA_EXTENSION
-    )
-  }
-
   try:
     uptane.common.create_directory_structure_for_client(
-        client_dir=CLIENT_DIRECTORY,
-        pinning_fname=pinned_file_path,
-        root_fnames_by_repository=ROOTFILE_PATHS
-    )
-    # atexit.register(clean_up_temp_folder)
+        CLIENT_DIRECTORY, create_primary_pinning_file(),
+        {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
+        demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        'metadata', 'root' + demo.METADATA_EXTENSION)})
+    atexit.register(clean_up_temp_folder)
 
   except IOError:
-    raise Exception(
-      RED + 'Unable to create Primary client directory structure.'
-      'Does the Director Repo for the vehicle exist yet?' + ENDCOLORS)
+    raise Exception(RED + 'Unable to create Primary client directory '
+        'structure. Does the Director Repo for the vehicle exist yet?' +
+        ENDCOLORS)
 
   # Configure tuf with the client's metadata directories (where it stores the
   # metadata it has collected from each repository, in subdirectories).
   tuf.conf.repository_directory = CLIENT_DIRECTORY
 
-  # 2025.07.16 nosho init_primary()にまとめ
+
+
   # Initialize a Primary ECU, making a client directory and copying the root
   # file from the repositories.
   primary_ecu = primary.Primary(
@@ -164,7 +148,7 @@ def clean_slate(
       primary_key=ecu_key,
       time=clock,
       timeserver_public_key=key_timeserver_pub)
-  # init_primary(client_dir=CLIENT_DIRECTORY)
+
 
   if listener_thread is None:
     listener_thread = threading.Thread(target=listen)
@@ -191,9 +175,8 @@ def clean_slate(
   submit_vehicle_manifest_to_director()
 
 
-# 2025.07.15 nosho 呼び出し方によって各リポジトリのipを指定できるように修正
-# def create_primary_pinning_file():
-def create_primary_pinning_file(director_ip='localhost', image_ip='localhost'):
+
+def create_primary_pinning_file():
   """
   Load the template pinned.json file and save a filled in version that, for the
   Director repository, points to a subdirectory intended for this specific
@@ -210,17 +193,12 @@ def create_primary_pinning_file(director_ip='localhost', image_ip='localhost'):
   # Trigger deletion of temp_secondary* folder after demo script ends
   atexit.register(clean_up_temp_file, fname_to_create)
 
-  # assert 1 == len(pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors']), 'Config error.'
-  
-  # Director の mirror URL を VINに応じて構成
-  director_mirror = f"http://{director_ip}:{demo.DIRECTOR_REPO_PORT}"
-  image_mirror = f"http://{image_ip}:{demo.IMAGE_REPO_PORT}"
-  # mirror = pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'][0]
-  # mirror = mirror.replace('<VIN>', _vin)
+  assert 1 == len(pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors']), 'Config error.'
 
-  # pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'][0] = mirror
-  pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'] = [director_mirror]
-  pinnings['repositories'][demo.IMAGE_REPO_NAME]['mirrors'] = [image_mirror]
+  mirror = pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'][0]
+  mirror = mirror.replace('<VIN>', _vin)
+
+  pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'][0] = mirror
 
   with open(fname_to_create, 'wb') as fobj:
     fobj.write(canonicaljson.encode_canonical_json(pinnings))
@@ -762,7 +740,7 @@ def init_primary(client_dir, use_new_keys=False):
         primary_key=ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
-
+    print("_vin", _vin)
   # if listener_thread is None:
   #   listener_thread = threading.Thread(target=listen)
   #   listener_thread.setDaemon(True)

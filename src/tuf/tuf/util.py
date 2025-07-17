@@ -979,13 +979,15 @@ def load_json_file(filepath):
   if filepath.endswith('.gz'):
     logger.debug('gzip.open(' + str(filepath) + ')')
     fileobject = six.StringIO(gzip.open(filepath).read().decode('utf-8'))
-  
+    print("★load_json_file1", fileobject, filepath)      
   else:
     logger.debug('open(' + str(filepath) + ')')
     fileobject = open(filepath)
+    print("★load_json_file2", fileobject, filepath)      
 
   try:
     deserialized_object = json.load(fileobject)
+    print("★load_json_file3", deserialized_object)      
   
   except (ValueError, TypeError):
     raise tuf.Error('Cannot deserialize to a Python object: ' + repr(filepath))
