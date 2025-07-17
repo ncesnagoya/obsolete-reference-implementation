@@ -762,6 +762,27 @@ def init_primary(client_dir, use_new_keys=False):
         primary_key=ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
+    
+  if listener_thread is None:
+    listener_thread = threading.Thread(target=listen)
+    listener_thread.setDaemon(True)
+    listener_thread.start()
+  print('\n' + GREEN + 'Primary is now listening for messages from ' +
+      'Secondaries.' + ENDCOLORS)
+
+
+  try:
+    register_self_with_director()
+  except xmlrpc_client.Fault:
+    print('Registration with Director failed. Now assuming this Primary is '
+        'already registered.')
+
+
+  print(GREEN + '\n Now simulating a Primary that rolled off the assembly line'
+      '\n and has never seen an update.' + ENDCOLORS)
+
+  print("Generating this Primary's first Vehicle Version Manifest and sending "
+      "it to the Director.")
 
 
 # 2025.07.16 nosho 複数VM用にディレクトリを作成する関数
