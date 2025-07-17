@@ -324,6 +324,7 @@ class Updater(object):
     """
     if repo_name is not None:
       self._validate_repo_name(repo_name)
+      print("repo_name:  ",  repo_name)
       self.repositories[repo_name].refresh()
 
     else:

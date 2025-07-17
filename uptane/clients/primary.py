@@ -352,6 +352,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     """
 
     # Refresh the Director first, per the Uptane Standard.
+    print("self.director_repo_name: ", self.director_repo_name)
     self.updater.refresh(repo_name=self.director_repo_name)
 
     # Now that we've dealt with the Director repository, deal with any and all
