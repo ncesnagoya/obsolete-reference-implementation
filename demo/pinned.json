@@ -1,10 +1,10 @@
 {
   "repositories": {
     "image_repo": {
-      "mirrors": ["http://192.168.194.21:30301"]
+      "mirrors": ["http://192.168.194.21:30301/image_repo"]
     },
     "director_repo": {
-      "mirrors": ["http://192.168.194.22:30401"]
+      "mirrors": ["http://192.168.194.22:30401/director_repo/<VIN>"]
     }
   },
   "delegations": [
