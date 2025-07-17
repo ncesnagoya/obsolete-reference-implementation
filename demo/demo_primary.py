@@ -762,14 +762,13 @@ def init_primary(client_dir, use_new_keys=False):
         primary_key=ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
-    
-  if listener_thread is None:
-    listener_thread = threading.Thread(target=listen)
-    listener_thread.setDaemon(True)
-    listener_thread.start()
-  print('\n' + GREEN + 'Primary is now listening for messages from ' +
-      'Secondaries.' + ENDCOLORS)
 
+  # if listener_thread is None:
+  #   listener_thread = threading.Thread(target=listen)
+  #   listener_thread.setDaemon(True)
+  #   listener_thread.start()
+  # print('\n' + GREEN + 'Primary is now listening for messages from ' +
+  #     'Secondaries.' + ENDCOLORS)
 
   try:
     register_self_with_director()
