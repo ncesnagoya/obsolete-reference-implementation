@@ -106,16 +106,16 @@ def clean_slate(
       uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
 # 2025.07.16 nosho init_primary()にまとめ
-  # # Load the public timeserver key.
-  # key_timeserver_pub = demo.import_public_key('timeserver')
+  # Load the public timeserver key.
+  key_timeserver_pub = demo.import_public_key('timeserver')
 
-  # # Generate a trusted initial time for the Primary.
-  # clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
-  # clock = clock.isoformat() + 'Z'
-  # tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+  # Generate a trusted initial time for the Primary.
+  clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+  clock = clock.isoformat() + 'Z'
+  tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
 
-  # # Load the private key for this Primary ECU.
-  # load_or_generate_key(use_new_keys)
+  # Load the private key for this Primary ECU.
+  load_or_generate_key(use_new_keys)
 
   # Craft the directory structure for the client directory, including the
   # creation of repository metadata directories, current and previous, putting
@@ -154,17 +154,17 @@ def clean_slate(
   tuf.conf.repository_directory = CLIENT_DIRECTORY
 
   # 2025.07.16 nosho init_primary()にまとめ
-  # # Initialize a Primary ECU, making a client directory and copying the root
-  # # file from the repositories.
-  # primary_ecu = primary.Primary(
-  #     full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
-  #     director_repo_name=demo.DIRECTOR_REPO_NAME,
-  #     vin=_vin,
-  #     ecu_serial=_ecu_serial,
-  #     primary_key=ecu_key,
-  #     time=clock,
-  #     timeserver_public_key=key_timeserver_pub)
-  init_primary(client_dir=CLIENT_DIRECTORY)
+  # Initialize a Primary ECU, making a client directory and copying the root
+  # file from the repositories.
+  primary_ecu = primary.Primary(
+      full_client_dir=os.path.join(uptane.WORKING_DIR, CLIENT_DIRECTORY),
+      director_repo_name=demo.DIRECTOR_REPO_NAME,
+      vin=_vin,
+      ecu_serial=_ecu_serial,
+      primary_key=ecu_key,
+      time=clock,
+      timeserver_public_key=key_timeserver_pub)
+  # init_primary(client_dir=CLIENT_DIRECTORY)
 
   if listener_thread is None:
     listener_thread = threading.Thread(target=listen)
