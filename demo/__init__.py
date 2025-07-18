@@ -17,9 +17,8 @@ LOCAL = 'localhost'
 HOSTING = '0.0.0.0'
 
 METADATA_EXTENSION = '.' + tuf.conf.METADATA_FORMAT
-# 2025.07.18 nosho Scudo用に変更
-SCUDO_UPTANE_DIR = os.path.join(uptane.WORKING_DIR, "uptane")
-UPTANE_DIR = os.path.join(SCUDO_UPTANE_DIR, 'uptane')
+
+UPTANE_DIR = os.path.join(uptane.WORKING_DIR, 'uptane')
 DEMO_DIR = os.path.join(UPTANE_DIR, 'demo')
 DEMO_KEYS_DIR = os.path.join(DEMO_DIR, 'keys')
 # Pinning files are still always JSON.
