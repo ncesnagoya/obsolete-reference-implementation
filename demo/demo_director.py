@@ -853,9 +853,8 @@ def listen():
   director_service_thread.setDaemon(True)
   director_service_thread.start()
 
-  # 2025.07.17 noshoポート開けたままに無限ループ
-  while(1):
-    {}
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 

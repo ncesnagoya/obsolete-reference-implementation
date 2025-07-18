@@ -126,9 +126,8 @@ def listen(use_new_keys=False):
   timeserver_listener_thread.setDaemon(True)
   timeserver_listener_thread.start()
 
-  # 2025.07.17 noshoポート開けたままに無限ループ
-  while(1):
-    {}
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 
