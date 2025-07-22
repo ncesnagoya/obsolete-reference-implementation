@@ -693,7 +693,7 @@ def host():
   # Begin hosting the director's repository.
   # repo_server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
   # 2025.07.22 nosho サブプロセスの標準出力・標準エラーを親プロセスに接続して読み取る
-  server_process = subprocess.Popen(command,
+  repo_server_process = subprocess.Popen(command,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     bufsize=1,
@@ -701,9 +701,9 @@ def host():
 
     # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
   threading.Thread(target=_log_subprocess_output, args=(
-    server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
+    repo_server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
   threading.Thread(target=_log_subprocess_output, args=(
-    server_process.stderr, "HTTP-STDERR"), daemon=True).start()
+    repo_server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
 
