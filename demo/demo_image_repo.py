@@ -246,7 +246,7 @@ def host():
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     bufsize=1,
-                                    universal_newlines=True)  # テキストモード
+                                    universal_newlines=True)
 
     # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
   threading.Thread(target=_log_subprocess_output, args=(
