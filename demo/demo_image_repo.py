@@ -249,9 +249,9 @@ def host():
                                     universal_newlines=True)
 
     # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
-  threading.Thread(target=_log_subprocess_output, args=(
+  threading.Thread(target=log_subprocess_output, args=(
     server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
-  threading.Thread(target=_log_subprocess_output, args=(
+  threading.Thread(target=log_subprocess_output, args=(
     server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
@@ -733,36 +733,19 @@ def get_file(filepath):
         return f"ERROR: {str(e)}"
 
 
-def _log_subprocess_output(pipe, prefix):
+def log_subprocess_output(pipe, prefix):
     for line in iter(pipe.readline, b''):
         print(f"{prefix}: {line.rstrip()}")
 
-# def get_file(file_path):
-#     """
-#     指定されたファイルパスのファイル内容を返す。
 
-#     Args:
-#         file_path (str): 取得したいファイルの絶対パス。
-
-#     Returns:
-#         bytes: ファイルの中身
-
-#     Raises:
-#         Exception: ファイル読み込みエラーなど
-#     """
-#     try:
-#         print('[get_file] リクエストされたファイル:', file_path)
-
-#         if not os.path.isfile(file_path):
-#             print('[get_file] エラー: 指定されたファイルが存在しません:', file_path)
-#             return None
-
-#         with open(file_path, 'rb') as f:
-#             data = f.read()
-
-#         print('[get_file] 正常にファイルを読み込みました（バイト数:', len(data), '）')
-#         return xmlrpc_client.Binary(data)
-
-#     except Exception as e:
-#         print('[get_file] 例外が発生しました:', str(e))
-#         return None
+def kill_process_on_port(port):
+    """指定ポートを使っているプロセスがいれば強制終了する"""
+    try:
+        result = subprocess.check_output(['lsof', '-t', f'-i:{port}'])
+        pids = result.decode().strip().split('\n')
+        for pid in pids:
+            print(f"[INFO] Killing process on port {port}: PID {pid}")
+            os.kill(int(pid), signal.SIGKILL)
+            time.sleep(1)  # 少し待ってから起動した方が安定する
+    except subprocess.CalledProcessError:
+        print(f"[INFO] No process using port {port}")

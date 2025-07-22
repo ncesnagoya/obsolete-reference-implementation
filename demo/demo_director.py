@@ -700,9 +700,9 @@ def host():
                                     universal_newlines=True)
 
     # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
-  threading.Thread(target=_log_subprocess_output, args=(
+  threading.Thread(target=demo_image_repo.log_subprocess_output, args=(
     repo_server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
-  threading.Thread(target=_log_subprocess_output, args=(
+  threading.Thread(target=demo_image_repo.log_subprocess_output, args=(
     repo_server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
@@ -819,7 +819,7 @@ def listen():
   server.register_function(write_to_live, 'write_director_repo')
 
   # 2025.07.22 nosho VM04から取得できるようにする関数を登録
-  server.register_function(get_file, 'get_file')
+  server.register_function(demo_image_repo.get_file, 'get_file')
 
   server.register_function(
       inventory.get_last_vehicle_manifest, 'get_last_vehicle_manifest')
@@ -1912,16 +1912,16 @@ def init_repo():
     director_service_instance.add_new_vehicle(vin)
   
 
-# 2025.07.18 nosho リモートでファイルを転送するための関数
-def get_file(filepath):
-    try:
-        with open(filepath, "rb") as f:
-            encoded = base64.b64encode(f.read()).decode("utf-8")
-        return encoded
-    except Exception as e:
-        return f"ERROR: {str(e)}"
+# # 2025.07.18 nosho リモートでファイルを転送するための関数
+# def get_file(filepath):
+#     try:
+#         with open(filepath, "rb") as f:
+#             encoded = base64.b64encode(f.read()).decode("utf-8")
+#         return encoded
+#     except Exception as e:
+#         return f"ERROR: {str(e)}"
     
 
-def _log_subprocess_output(pipe, prefix):
-    for line in iter(pipe.readline, ''):
-        print(f"{prefix}: {line.rstrip()}")
+# def _log_subprocess_output(pipe, prefix):
+#     for line in iter(pipe.readline, ''):
+#         print(f"{prefix}: {line.rstrip()}")

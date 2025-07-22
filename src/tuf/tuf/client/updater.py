@@ -243,7 +243,6 @@ class Updater(object):
     # which targets should be sought from which repository(/ies).
     self._load_pinned_metadata(os.path.join(
         client_repositories_directory, 'metadata', 'pinned.json')) # Always JSON
-    print("★client_repositories_directory", client_repositories_directory)      
 
     # This is where the SingleRepoUpdater objects are stored, indexed by
     # repository name.
