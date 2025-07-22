@@ -37,12 +37,14 @@ import os # For paths and makedirs
 import shutil # For copyfile
 import threading # for the demo listener
 import time
-
+# 以下のimport文はPython2にも対応した形
 from six.moves import xmlrpc_client
 from six.moves import xmlrpc_server
 from six.moves import range
 import socket # to catch listening failures from six's xmlrpc server
-
+# Python3用のxmlrpcサーバーimport文
+import xmlrpc.client
+import base64
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -796,3 +798,17 @@ def create_client_structure(director_ip, image_ip):
           CLIENT_DIRECTORY, 'metadata', repo_name, 'previous'))
 
     tuf.conf.repository_directory = CLIENT_DIRECTORY
+
+
+def download_file(server_url, remote_path, local_path):
+    proxy = xmlrpc.client.ServerProxy(server_url, allow_none=True)
+    print(f"Downloading {remote_path} from {server_url} ...")
+    filedata = proxy.get_file(remote_path)
+
+    if filedata.startswith("ERROR"):
+        print("Server error:", filedata)
+        return
+
+    with open(local_path, "wb") as f:
+        f.write(base64.b64decode(filedata))
+    print(f"Saved to {local_path}")
