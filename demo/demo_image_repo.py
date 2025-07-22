@@ -248,10 +248,10 @@ def host():
                                     universal_newlines=True)  # テキストモード
 
     # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
-    threading.Thread(target=_log_subprocess_output, args=(server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
-    threading.Thread(target=_log_subprocess_output, args=(server_process.stderr, "HTTP-STDERR"), daemon=True).start()
-
-
+  threading.Thread(target=_log_subprocess_output, args=(
+    server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
+  threading.Thread(target=_log_subprocess_output, args=(
+    server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
 
