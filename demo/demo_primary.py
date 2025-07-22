@@ -45,6 +45,7 @@ import socket # to catch listening failures from six's xmlrpc server
 # Python3用のxmlrpcサーバーimport文
 import xmlrpc.client
 import base64
+import urllib
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -812,3 +813,8 @@ def download_file(server_url, remote_path, local_path):
     with open(local_path, "wb") as f:
         f.write(base64.b64decode(filedata))
     print(f"Saved to {local_path}")
+
+
+def download_file_http(remote_url):
+    with urllib.request.urlopen(remote_url) as response:
+        return response.read()
