@@ -807,6 +807,9 @@ def listen():
   server.register_function(add_target_to_director, 'add_target_to_director')
   server.register_function(write_to_live, 'write_director_repo')
 
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(get_file, 'get_file')
+
   server.register_function(
       inventory.get_last_vehicle_manifest, 'get_last_vehicle_manifest')
   server.register_function(

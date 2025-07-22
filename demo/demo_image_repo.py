@@ -305,6 +305,9 @@ def listen():
       'add_target_to_image_repo')
   server.register_function(write_to_live, 'write_image_repo')
 
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(get_file, 'get_file')
+
   # Attack 1: Arbitrary Package Attack on Image Repository without
   # Compromised Keys.
   # README.md section 3.2
@@ -716,8 +719,3 @@ def get_file(filepath):
         return encoded
     except Exception as e:
         return f"ERROR: {str(e)}"
-
-    # server = xmlrpc_server.SimpleXMLRPCServer(("0.0.0.0", 30301), allow_none=True)  # VM03なら30401
-    # print("Serving XML-RPC on port 30301")
-    # server.register_function(get_file, 'get_file')
-    # server.serve_forever()
