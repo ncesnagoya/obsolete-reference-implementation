@@ -241,6 +241,7 @@ def host():
 
   # Begin hosting Image Repository.
   # server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+  # 2025.07.22 nosho サブプロセスの標準出力・標準エラーを親プロセスに接続して読み取る
   server_process = subprocess.Popen(command,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
@@ -734,7 +735,7 @@ def get_file(filepath):
 
 def _log_subprocess_output(pipe, prefix):
     for line in iter(pipe.readline, b''):
-        print(f"{prefix}: {line.decode().rstrip()}")
+        print(f"{prefix}: {line.rstrip()}")
 
 # def get_file(file_path):
 #     """
