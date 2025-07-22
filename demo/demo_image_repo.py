@@ -717,7 +717,7 @@ def get_file(filepath):
     except Exception as e:
         return f"ERROR: {str(e)}"
 
-    server = xmlrpc_server.SimpleXMLRPCServer(("0.0.0.0", 30301), allow_none=True)  # VM03なら30401
-    print("Serving XML-RPC on port 30301")
-    server.register_function(get_file, 'get_file')
-    server.serve_forever()
+    # server = xmlrpc_server.SimpleXMLRPCServer(("0.0.0.0", 30301), allow_none=True)  # VM03なら30401
+    # print("Serving XML-RPC on port 30301")
+    # server.register_function(get_file, 'get_file')
+    # server.serve_forever()

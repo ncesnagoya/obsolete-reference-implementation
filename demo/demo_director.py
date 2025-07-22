@@ -56,7 +56,7 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
-
+import base64
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
 # implementation uses this to display banners for defenses that would otherwise
@@ -1897,3 +1897,12 @@ def init_repo():
     # print("vin", vin)
     director_service_instance.add_new_vehicle(vin)
   
+
+# 2025.07.18 nosho リモートでファイルを転送するための関数
+def get_file(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        return encoded
+    except Exception as e:
+        return f"ERROR: {str(e)}"
