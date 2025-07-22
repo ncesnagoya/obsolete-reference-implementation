@@ -240,7 +240,18 @@ def host():
                '--bind', '0.0.0.0']
 
   # Begin hosting Image Repository.
-  server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+  # server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+  server_process = subprocess.Popen(command,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    bufsize=1,
+                                    universal_newlines=True)  # テキストモード
+
+    # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
+    threading.Thread(target=_log_subprocess_output, args=(server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
+    threading.Thread(target=_log_subprocess_output, args=(server_process.stderr, "HTTP-STDERR"), daemon=True).start()
+
+
 
   os.chdir(uptane.WORKING_DIR)
 
@@ -719,3 +730,38 @@ def get_file(filepath):
         return encoded
     except Exception as e:
         return f"ERROR: {str(e)}"
+
+
+def _log_subprocess_output(pipe, prefix):
+    for line in iter(pipe.readline, b''):
+        print(f"{prefix}: {line.decode().rstrip()}")
+
+# def get_file(file_path):
+#     """
+#     指定されたファイルパスのファイル内容を返す。
+
+#     Args:
+#         file_path (str): 取得したいファイルの絶対パス。
+
+#     Returns:
+#         bytes: ファイルの中身
+
+#     Raises:
+#         Exception: ファイル読み込みエラーなど
+#     """
+#     try:
+#         print('[get_file] リクエストされたファイル:', file_path)
+
+#         if not os.path.isfile(file_path):
+#             print('[get_file] エラー: 指定されたファイルが存在しません:', file_path)
+#             return None
+
+#         with open(file_path, 'rb') as f:
+#             data = f.read()
+
+#         print('[get_file] 正常にファイルを読み込みました（バイト数:', len(data), '）')
+#         return xmlrpc_client.Binary(data)
+
+#     except Exception as e:
+#         print('[get_file] 例外が発生しました:', str(e))
+#         return None
