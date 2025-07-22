@@ -1923,5 +1923,5 @@ def get_file(filepath):
     
 
 def _log_subprocess_output(pipe, prefix):
-    for line in iter(pipe.readline, b''):
+    for line in iter(pipe.readline, ''):
         print(f"{prefix}: {line.rstrip()}")
