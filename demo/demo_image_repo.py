@@ -42,6 +42,7 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
+import base64
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -705,3 +706,19 @@ def init_repo():
   repo.timestamp.load_signing_key(key_timestamp_pri)
   repo.snapshot.load_signing_key(key_snapshot_pri)
   repo.targets.load_signing_key(key_targets_pri)
+
+
+# 2025.07.18 nosho リモートでファイルを転送するための関数
+def get_file(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        return encoded
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+server = xmlrpc_server.SimpleXMLRPCServer(("0.0.0.0", 30301), allow_none=True)  # VM03なら30401
+print("Serving XML-RPC on port 30301")
+server.register_function(get_file, 'get_file')
+server.serve_forever()
+
