@@ -43,7 +43,7 @@ import json # for customizing the Secondary's pinnings file.
 import canonicaljson
 
 from six.moves import xmlrpc_client
-
+import pickle
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -107,7 +107,7 @@ def clean_slate(
     _primary_port = primary_port
 
   CLIENT_DIRECTORY = os.path.join(
-      uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+      demo.SECONDARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
@@ -133,7 +133,8 @@ def clean_slate(
   # Create directory structure for the client and copy the root files from the
   # repositories. First, schedule the deletion of this directory to occur when
   # the script ends (so that it's deleted even if an error occurs here).
-  atexit.register(clean_up_temp_folder)
+  # 以下コードがあると作成したプライマリのファイルが削除される
+  # atexit.register(clean_up_temp_folder)
   uptane.common.create_directory_structure_for_client(
       CLIENT_DIRECTORY, create_secondary_pinning_file(),
       {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
@@ -184,7 +185,8 @@ def clean_slate(
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
-
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_secondary_obj(secondary_ecu)
 
 
 
@@ -202,7 +204,10 @@ def create_secondary_pinning_file():
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_secondary_' + demo.get_random_string(5))
-  atexit.register(clean_up_temp_file, fname_to_create)
+
+  # 2025.07.22 nosho 作成したpinned.jsonをすぐに消さない
+  # atexit.register(clean_up_temp_file, fname_to_create)
+
   # To delete the temp pinned file after the script ends
   for repo_name in pinnings['repositories']:
 
@@ -283,7 +288,6 @@ def load_or_generate_key(use_new_keys=False):
 
 
 
-
 def update_cycle():
   """
   Updates our metadata and images from the Primary. Raises the appropriate
@@ -303,8 +307,13 @@ def update_cycle():
   print('Submitting a request for a signed time to the Primary.')
   log.debug('Submitting a request for a signed time to the Primary.')
 
+  if secondary_ecu is None:
+    secondary_ecu = load_secondary_obj()
+    pserver.register_new_secondary(secondary_ecu.ecu_serial)
+
   # Download the time attestation from the Primary.
-  time_attestation = pserver.get_time_attestation_for_ecu(_ecu_serial)
+  print("★ secondary_ecu.ecu_serial: ", secondary_ecu.ecu_serial)
+  time_attestation = pserver.get_time_attestation_for_ecu(secondary_ecu.ecu_serial)
   if tuf.conf.METADATA_FORMAT == 'der':
     # Binary data transfered via XMLRPC has to be wrapped in an xmlrpc Binary
     # object. The data itself is contained in attribute 'data'.
@@ -347,7 +356,8 @@ def update_cycle():
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
   secondary_ecu.process_metadata(archive_fname)
-
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   # As part of the process_metadata call, the secondary will have saved
   # validated target info for targets intended for it in
@@ -388,7 +398,6 @@ def update_cycle():
   # TODO: <~> Cross-check this: we have the metadata now, so we and the Primary
   # should agree on whether or not there is an image to download.
   if not pserver.update_exists_for_ecu(secondary_ecu.ecu_serial):
-
     print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
         text='Primary reports that there is no update for this ECU.')
     # print(YELLOW + 'Primary reports that there is no update for this ECU.')
@@ -401,6 +410,8 @@ def update_cycle():
   log.debug('Submitting a request for a image to the Primary.')
   # Download the image for this ECU from the Primary.
   (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   if image is None:
     print(YELLOW + 'Requested image from Primary but received none. Update '
@@ -502,7 +513,8 @@ def update_cycle():
   # 2. Set the fileinfo in the secondary_ecu object to the target info for the
   #    new firmware.
   secondary_ecu.firmware_fileinfo = expected_target_info
-
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   with open(current_firmware_filepath, 'rb') as file_object:
     if file_object.read() == b'evil content':
@@ -537,6 +549,8 @@ def update_cycle():
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_secondary_obj(secondary_ecu)
 
 
 
@@ -588,7 +602,6 @@ def ATTACK_send_corrupt_manifest_to_primary():
 
 
 
-
 def register_self_with_director():
   """
   Send the Director a message to register our ECU serial number and Public Key.
@@ -607,7 +620,6 @@ def register_self_with_director():
       uptane.common.public_key_from_canonical(secondary_ecu.ecu_key), _vin,
       False)
   print(GREEN + 'Secondary has been registered with the Director.' + ENDCOLORS)
-
 
 
 
@@ -686,3 +698,135 @@ def looping_update():
       print(repr(e))
       pass
     time.sleep(1)
+
+
+def init_secondary(
+    client_dir,
+    use_new_keys=False,
+    #client_directory_name=None,
+    primary_host=None,
+    primary_port=None,
+    secondary_ecu=secondary_ecu,
+  ):
+  tuf.conf.repository_directory = client_dir # This setting should probably be called CLIENT_DIRECTORY instead, post-TAP4.
+
+  if primary_host is not None:
+    _primary_host = primary_host
+
+  if primary_port is not None:
+    _primary_port = primary_port
+
+  # CLIENT_DIRECTORY = os.path.join(
+  #     demo.SECONDARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+
+  # Load the public timeserver key.
+  if secondary_ecu is None:
+    key_timeserver_pub = demo.import_public_key('timeserver')
+
+    # Set starting firmware fileinfo (that this ECU had coming from the factory)
+    factory_firmware_fileinfo = {
+        'filepath': '/secondary_firmware.txt',
+        'fileinfo': {
+            'hashes': {
+                'sha512': '706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce',
+                'sha256': '6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44'},
+            'length': 37}}
+
+    # Prepare this ECU's key.
+    load_or_generate_key(use_new_keys)
+
+    # Generate a trusted initial time for the Secondary.
+    clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+    clock = clock.isoformat() + 'Z'
+    tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+
+
+  # Create directory structure for the client and copy the root files from the
+  # repositories. First, schedule the deletion of this directory to occur when
+  # the script ends (so that it's deleted even if an error occurs here).
+  # 以下コードがあると作成したプライマリのファイルが削除される
+  # atexit.register(clean_up_temp_folder)
+  
+    print("★ full_client_dir: ", client_dir)
+    print("★ director_repo_name: ", demo.DIRECTOR_REPO_NAME)
+    print("★ _vin: ", _vin)
+    print("★ _ecu_serial: ", _ecu_serial)
+    print("★ ecu_key: ", ecu_key)
+    print("★ clock: ", clock)
+    print("★ factory_firmware_fileinfo: ", factory_firmware_fileinfo)
+    print("★ key_timeserver_pub: ", key_timeserver_pub)
+  # Initialize a full verification Secondary ECU.
+  # This also generates a nonce to use in the next time query, sets the initial
+  # firmware fileinfo, etc.
+  secondary_ecu = secondary.Secondary(
+      full_client_dir=client_dir,
+      director_repo_name=demo.DIRECTOR_REPO_NAME,
+      vin=_vin,
+      ecu_serial=_ecu_serial,
+      ecu_key=ecu_key,
+      time=clock,
+      firmware_fileinfo=factory_firmware_fileinfo,
+      timeserver_public_key=key_timeserver_pub)
+  print("★ secondary_ecu: ", secondary_ecu)
+
+  try:
+    # 2025.-7.23 nosho global変数を引数からも渡せるように変更
+    register_self_with_director(secondary_ecu=secondary_ecu)
+  except xmlrpc_client.Fault:
+    print('Registration with Director failed. Now assuming this Secondary is '
+        'already registered.')
+
+  # try:
+  #   # 2025.-7.23 nosho global変数を引数からも渡せるように変更
+  #   register_self_with_primary(secondary_ecu=secondary_ecu,
+  #                              primary_host=primary_host,
+  #                              primary_port=primary_port)
+  # except xmlrpc_client.Fault:
+  #   print('Registration with Primary failed. Now assuming this Secondary is '
+  #       'already registered.')
+
+
+  print('\n' + GREEN + ' Now simulating a Secondary that rolled off the '
+      'assembly line\n and has never seen an update.' + ENDCOLORS)
+  print("Generating this Secondary's first ECU Version Manifest and sending "
+      "it to the Primary.")
+
+  return secondary_ecu
+
+
+def save_secondary_obj(secondary_ecu):
+  """
+    2025.07.24 nosho
+    初期化時にインスタンス化したデータをファイルに書き出し
+    """
+  data = {
+    "secondary": secondary_ecu,
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_secondary_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  secondary_ecu = data["secondary"]
+  # client_dir = data["client_dir"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return secondary_ecu
+

@@ -45,7 +45,8 @@ import socket # to catch listening failures from six's xmlrpc server
 # Python3用のxmlrpcサーバーimport文
 import xmlrpc.client
 import base64
-import urllib
+import requests
+import pickle
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -103,9 +104,8 @@ def clean_slate(
   # if client_directory_name is not None:
   #   CLIENT_DIRECTORY = client_directory_name
   # else:
-  # 2025.07.17 nosho primarydirの生成先を/home/vagrant/scudo/primaryに
   CLIENT_DIRECTORY = os.path.join(
-    demo.PRIMARY_REPO_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+      demo.PRIMARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
 
@@ -121,14 +121,15 @@ def clean_slate(
   # the pinning.json file in place, etc. First, schedule the deletion of this
   # directory to occur when the script ends (so that it's deleted even if an
   # error occurs here).
-  atexit.register(clean_up_temp_folder)
+  # 以下コードがあると作成したプライマリのファイルが削除される
+  # atexit.register(clean_up_temp_folder)
   try:
     uptane.common.create_directory_structure_for_client(
         CLIENT_DIRECTORY, create_primary_pinning_file(),
         {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
         demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
         'metadata', 'root' + demo.METADATA_EXTENSION)})
-    atexit.register(clean_up_temp_folder)
+    # atexit.register(clean_up_temp_folder)
 
   except IOError:
     raise Exception(RED + 'Unable to create Primary client directory '
@@ -138,7 +139,6 @@ def clean_slate(
   # Configure tuf with the client's metadata directories (where it stores the
   # metadata it has collected from each repository, in subdirectories).
   tuf.conf.repository_directory = CLIENT_DIRECTORY
-
 
 
   # Initialize a Primary ECU, making a client directory and copying the root
@@ -151,6 +151,7 @@ def clean_slate(
       primary_key=ecu_key,
       time=clock,
       timeserver_public_key=key_timeserver_pub)
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
 
 
   if listener_thread is None:
@@ -177,6 +178,10 @@ def clean_slate(
   generate_signed_vehicle_manifest()
   submit_vehicle_manifest_to_director()
 
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+  save_primary_obj(primary_ecu)
+
 
 
 def create_primary_pinning_file():
@@ -193,8 +198,9 @@ def create_primary_pinning_file():
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_primary_' + demo.get_random_string(5))
 
+  # 2025.07.22 nosho 作成したpinned.jsonをすぐに消さない
   # Trigger deletion of temp_secondary* folder after demo script ends
-  atexit.register(clean_up_temp_file, fname_to_create)
+  # atexit.register(clean_up_temp_file, fname_to_create)
 
   assert 1 == len(pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors']), 'Config error.'
 
@@ -229,7 +235,6 @@ def load_or_generate_key(use_new_keys=False):
 
 
 
-
 def update_cycle():
   """
   """
@@ -239,6 +244,13 @@ def update_cycle():
   #
 
   log.debug('Start Update Primary.')
+  # 2025.07.24 nosho primary_ecuオブジェクトがなければファイルから読み込み
+  global primary_ecu
+  global listener_thread
+  if primary_ecu is None:
+    primary_ecu = load_primary_obj()
+    print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -341,6 +353,19 @@ def update_cycle():
   submit_vehicle_manifest_to_director()
 
 
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+  if listener_thread is None:
+    listener_thread = threading.Thread(target=listen)
+    listener_thread.setDaemon(True)
+    listener_thread.start()
+  print('\n' + GREEN + 'Primary is now listening for messages from ' +
+        'Secondaries.' + ENDCOLORS)
+
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_primary_obj(primary_ecu)
+
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 
@@ -353,7 +378,6 @@ def generate_signed_vehicle_manifest():
   # version/hash/size of file2.txt as its firmware.
   most_recent_signed_vehicle_manifest = \
       primary_ecu.generate_signed_vehicle_manifest()
-
 
 
 
@@ -395,7 +419,6 @@ def submit_vehicle_manifest_to_director(signed_vehicle_manifest=None):
 
 
 
-
 def register_self_with_director():
   """
   Send the Director a message to register our ECU serial number and Public Key.
@@ -411,7 +434,18 @@ def register_self_with_director():
       uptane.common.public_key_from_canonical(primary_ecu.primary_key),
       _vin, True)
   print(GREEN + 'Primary has been registered with the Director.' + ENDCOLORS)
+  
+  # # 2025.07.24 nosho server情報をファイルに書き出し
+  # data = {
+  #   "server": server,
+  # }
 
+  # # 保存先パスを作成
+  # save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.ECU_SERVER_PKL)
+
+  # with open(save_path, "wb") as f:
+  #   pickle.dump(data, f)
+  # print(f"[保存完了] {save_path} に状態を保存しました。\n")
 
 
 # This wouldn't be how we'd do it in practice. ECUs would probably be registered
@@ -717,8 +751,12 @@ def looping_update():
     time.sleep(1)
 
 
-def init_primary(client_dir, use_new_keys=False):
-  global primary_ecu
+def init_primary(
+    client_dir,
+    use_new_keys=False,
+    primary_ecu=primary_ecu,
+    ):
+
   tuf.conf.repository_directory = client_dir
 
   # Initialize a Primary ECU, making a client directory and copying the root
@@ -743,62 +781,63 @@ def init_primary(client_dir, use_new_keys=False):
         primary_key=ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
-    print("_vin", _vin)
-  # if listener_thread is None:
-  #   listener_thread = threading.Thread(target=listen)
-  #   listener_thread.setDaemon(True)
-  #   listener_thread.start()
-  # print('\n' + GREEN + 'Primary is now listening for messages from ' +
-  #     'Secondaries.' + ENDCOLORS)
 
-  try:
-    register_self_with_director()
-  except xmlrpc_client.Fault:
-    print('Registration with Director failed. Now assuming this Primary is '
-        'already registered.')
+    # if listener_thread is None:
+    #   listener_thread = threading.Thread(target=listen)
+    #   listener_thread.setDaemon(True)
+    #   listener_thread.start()
+    # print('\n' + GREEN + 'Primary is now listening for messages from ' +
+    #     'Secondaries.' + ENDCOLORS)
 
-
-  print(GREEN + '\n Now simulating a Primary that rolled off the assembly line'
-      '\n and has never seen an update.' + ENDCOLORS)
-
-  print("Generating this Primary's first Vehicle Version Manifest and sending "
-      "it to the Director.")
+    try:
+      register_self_with_director(primary_ecu=primary_ecu)
+    except xmlrpc_client.Fault:
+      print('Registration with Director failed. Now assuming this Primary is '
+          'already registered.')
 
 
-# 2025.07.16 nosho 複数VM用にディレクトリを作成する関数
-# （単体VM用はuptane.common.create_directory_structure_for_client()）
-def create_client_structure(director_ip, image_ip):
-    """
-    Create only the directory structure without copying any .der files.
-    Intended for distributed VM environments.
-    """
-    global CLIENT_DIRECTORY
+    print(GREEN + '\n Now simulating a Primary that rolled off the assembly line'
+        '\n and has never seen an update.' + ENDCOLORS)
 
-    CLIENT_DIRECTORY = os.path.join(
-        demo.PRIMARY_SERVER_DIR,
-        CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+    print("Generating this Primary's first Vehicle Version Manifest and sending "
+        "it to the Director.")
+    return primary_ecu
 
-    if os.path.exists(CLIENT_DIRECTORY):
-        shutil.rmtree(CLIENT_DIRECTORY)
-    os.makedirs(os.path.join(CLIENT_DIRECTORY, 'metadata'))
 
-    # 2025.07.15 nosho pinned.jsonを動的に作成
-    pinning_fname = create_primary_pinning_file(director_ip, image_ip)
-    # pinned.json: コピーする
-    shutil.copy(
-        pinning_fname,
-        os.path.join(CLIENT_DIRECTORY, 'metadata', 'pinned.json'))
+# # 2025.07.16 nosho 複数VM用にディレクトリを作成する関数
+# # （単体VM用はuptane.common.create_directory_structure_for_client()）
+# def create_client_structure(director_ip, image_ip):
+#     """
+#     Create only the directory structure without copying any .der files.
+#     Intended for distributed VM environments.
+#     """
+#     global CLIENT_DIRECTORY
 
-    with open(pinning_fname) as fobj:
-        pinnings = json.load(fobj)
+#     CLIENT_DIRECTORY = os.path.join(
+#         demo.PRIMARY_SERVER_DIR,
+#         CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
-    for repo_name in pinnings['repositories']:
-        os.makedirs(os.path.join(
-          CLIENT_DIRECTORY, 'metadata', repo_name, 'current'))
-        os.makedirs(os.path.join(
-          CLIENT_DIRECTORY, 'metadata', repo_name, 'previous'))
+#     if os.path.exists(CLIENT_DIRECTORY):
+#         shutil.rmtree(CLIENT_DIRECTORY)
+#     os.makedirs(os.path.join(CLIENT_DIRECTORY, 'metadata'))
 
-    tuf.conf.repository_directory = CLIENT_DIRECTORY
+#     # 2025.07.15 nosho pinned.jsonを動的に作成
+#     pinning_fname = create_primary_pinning_file(director_ip, image_ip)
+#     # pinned.json: コピーする
+#     shutil.copy(
+#         pinning_fname,
+#         os.path.join(CLIENT_DIRECTORY, 'metadata', 'pinned.json'))
+
+#     with open(pinning_fname) as fobj:
+#         pinnings = json.load(fobj)
+
+#     for repo_name in pinnings['repositories']:
+#         os.makedirs(os.path.join(
+#           CLIENT_DIRECTORY, 'metadata', repo_name, 'current'))
+#         os.makedirs(os.path.join(
+#           CLIENT_DIRECTORY, 'metadata', repo_name, 'previous'))
+
+#     tuf.conf.repository_directory = CLIENT_DIRECTORY
 
 
 def download_file(server_url, remote_path, local_path):
@@ -815,6 +854,140 @@ def download_file(server_url, remote_path, local_path):
     print(f"Saved to {local_path}")
 
 
-def download_file_http(remote_url):
-    with urllib.request.urlopen(remote_url) as response:
-        return response.read()
+def download_and_save_file(url: str, save_dir: str):
+    """
+    指定URLからファイルをダウンロードし、指定ディレクトリに保存する関数。
+
+    Parameters:
+        url (str): ダウンロード元のURL
+        save_dir (str): 保存先ディレクトリ（存在しない場合は作成される）
+
+    Returns:
+        str: 保存されたファイルのフルパス
+    """
+    try:
+        # ファイルデータを取得
+        response = requests.get(url)
+        response.raise_for_status()  # ステータスコードが200以外なら例外
+
+        # URLからファイル名を抽出
+        filename = os.path.basename(url)
+
+        # 保存先ディレクトリを作成（存在しなければ）
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 保存先パスを作成
+        save_path = os.path.join(save_dir, filename)
+
+        # ファイルを書き込み（バイナリモード）
+        with open(save_path, "wb") as f:
+            f.write(response.content)
+
+        print(f"ファイルを保存しました: {save_path}")
+        return save_path
+
+    except requests.RequestException as e:
+        print(f"ダウンロードに失敗しました: {e}")
+        return None
+
+
+# Not sure where to put this yet.
+# 2025.07.22 nosho uptane.common.py create_directory_structure_for_client()のVM4つ版
+def remote_create_directory_structure_for_client(
+    client_dir,
+    pinning_fname,
+    root_fnames_by_repository):
+  """
+
+  Creates a directory structure for a client, including current and previous
+  metadata directories.
+
+  Arguments:
+    client_dir
+      the client directory, into which metadata and targets will be downloaded
+      from repositories
+
+    pinning_fname
+      the filename of a pinned.json file to copy and use to map targets to
+      repositories
+
+    root_fnames_by_repository
+      a dictionary mapping repository name to the filename of the root.json
+      file for that repository to start with as the root of trust for that
+      repository.
+      e.g.
+        {'ImageRepo': 'distributed_roots/imagerepo_root.json',
+         'Director': 'distributed_roots/director_root.json'}
+      Each repository listed in the pinning.json file should have a
+      corresponding entry in this dict.
+
+  """
+
+  # Read the pinning file here and create a list of repositories and
+  # directories.
+
+  # Set up the TUF client directories for each repository.
+  if os.path.exists(client_dir):
+    shutil.rmtree(client_dir)
+  os.makedirs(os.path.join(client_dir, 'metadata'))
+
+  # Add a pinned.json to this client (softlink it from the indicated copy).
+  os.symlink(
+      pinning_fname, #os.path.join(WORKING_DIR, 'pinned.json'),
+      os.path.join(client_dir, 'metadata', 'pinned.json'))
+
+  with open(pinning_fname) as fobj:
+    pinnings = json.load(fobj)
+
+  for repo_name in pinnings['repositories']:
+    os.makedirs(os.path.join(client_dir, 'metadata', repo_name, 'current'))
+    os.makedirs(os.path.join(client_dir, 'metadata', repo_name, 'previous'))
+
+    # Set the root of trust we have for that repository.
+    shutil.copyfile(
+      root_fnames_by_repository[repo_name],
+      os.path.join(client_dir, 'metadata', repo_name, 'current',
+          'root.' + tuf.conf.METADATA_FORMAT))
+
+
+  # Configure tuf with the client's metadata directories (where it stores the
+  # metadata it has collected from each repository, in subdirectories).
+  tuf.conf.repository_directory = client_dir # TODO for TUF: This setting should probably be called client_directory instead, post-TAP4.
+
+
+def save_primary_obj(primary_ecu):
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータをファイルに書き出し
+  """
+  data = {
+    "primary": primary_ecu,
+    # "listener_thread": listener_thread
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_primary_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  primary_ecu = data["primary"]
+  # listener_thread = data["listener_thread"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return primary_ecu

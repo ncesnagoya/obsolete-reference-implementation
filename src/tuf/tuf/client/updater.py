@@ -2435,6 +2435,8 @@ class SingleRepoUpdater(object):
         #       Root expiration only needs to be checked when we're about to
         #       use the currently-trusted Root version to verify other,
         #       non-Root roles.)
+        print("★ self.metadata['current'][metadata_role]: ", self.metadata['current'][metadata_role])
+        print("★ metadata_role: ", metadata_role)
         self._ensure_not_expired(self.metadata['current'][metadata_role],
                                  metadata_role)
 
