@@ -125,7 +125,9 @@ def listen(use_new_keys=False):
   timeserver_listener_thread = threading.Thread(target=server.serve_forever)
   timeserver_listener_thread.setDaemon(True)
   timeserver_listener_thread.start()
-
+  
+  # 2025.07.17 nosho ポートを開けたままに変更
+  threading.Event().wait()
 
 
 

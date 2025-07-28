@@ -37,9 +37,6 @@ from datetime import datetime, timedelta, timezone
 timeserver_key = None
 
 
-
-
-
 def set_timeserver_key(private_key):
 
   global timeserver_key
@@ -53,21 +50,35 @@ def set_timeserver_key(private_key):
 
 # 2025.05.15 nosho 追記　ntpサーバーから時刻取得し、JST(日本標準時)に変換して返す
 # tests/test_get_time.pyに単体テストコード
-def get_time(nonces):
+def get_time_ntp(nonces, use_ntp=True): # 関数名注意
+  """
+  時刻を取得する関数。
+  use_ntp=True の場合は NTPサーバーから取得し、失敗時にはローカル時刻へフォールバック。
+  use_ntp=False の場合は最初からローカル時刻を使用。
+
+  :param nonces: リスト形式のnonce
+  :param use_ntp: TrueでNTP時刻を使用。Falseでローカル時刻。
+  :return: time_attestation dict
+  """
   uptane.formats.NONCE_LIST_SCHEMA.check_match(nonces)
+
+  clock = None
 
   # 2025.05.15 nosho ntpサーバーライブラリ追加
   try:
-    # ntpクライアント作成
-    ntp_client = ntplib.NTPClient()
-    # ntpサーバーから時刻を取得 (タイムアウトで内部から取得へ切替可能か確認する)
-    response = ntp_client.request('ntp.nict.jp', version=3)
-    clock = datetime.utcfromtimestamp(response.tx_time)
-    print("ntpサーバーから時刻取得", clock)
-
+    if use_ntp:
+      # ntpクライアント作成
+      ntp_client = ntplib.NTPClient()
+      # ntpサーバーから時刻を取得 (タイムアウトで内部から取得へ切替可能か確認する)
+      response = ntp_client.request('ntp.nict.jp', version=3)
+      clock = datetime.utcfromtimestamp(response.tx_time)
+      print("外部サーバーから時刻取得", clock)
+    else:
+      clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+      print("ローカル時刻を使用", e)
   except Exception as e:
-    print("Unixタイムスタンプから時刻取得に切り替え", e)
     clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+    print("外部サーバーから時刻取得失敗、ローカル時刻を使用", e)
 
   # Get the time, format it appropriately, and check the resulting format.
   # e.g. '2016-10-10T11:37:30Z'
@@ -82,11 +93,28 @@ def get_time(nonces):
   return time_attestation
 
 
+def get_time(nonces):
+  uptane.formats.NONCE_LIST_SCHEMA.check_match(nonces)
 
+  # Get the time, format it appropriately, and check the resulting format.
+  # e.g. '2016-10-10T11:37:30Z'
+  clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
+  clock = clock.isoformat() + 'Z'
+  tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+
+  time_attestation = {
+    'time': clock,
+    'nonces': nonces
+  }
+
+  return time_attestation
 
 
 def get_signed_time(nonces):
-  time_attestation = get_time(nonces)
+  # ntpから時刻師取得してくるよう変更
+  # time_attestation = get_time(nonces)
+  time_attestation = get_time_ntp(nonces)
+
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
   uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
