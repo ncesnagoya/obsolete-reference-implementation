@@ -10,7 +10,7 @@
   "delegations": [
     {
       "paths": ["*"],
-      "repositories": ["director", "imagerepo"]
+      "repositories": ["director_repo", "image_repo"]
     }
   ]
 }

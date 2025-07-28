@@ -55,7 +55,16 @@ PRIMARY_SERVER_DEFAULT_PORT = 30701
 PRIMARY_SERVER_AVAILABLE_PORTS = [
     30701, 30702, 30703, 30704, 30705, 30706, 30707, 30708, 30709, 30710, 30711]
 
+# プライマリとセカンダリのパス
+PRIMARY_SERVER_NAME = "primary"
+PRIMARY_SERVER_DIR = os.path.join(uptane.WORKING_DIR, PRIMARY_SERVER_NAME)
+SECONDARY_SERVER_NAME = "secondary"
+SECONDARY_SERVER_DIR = os.path.join(uptane.WORKING_DIR, SECONDARY_SERVER_NAME)
 
+# 2025.07,24 nosho primary/secondaryオブジェクト保存ファイル
+PRIMARY_ECU_PKL = "primary_ecu.pkl"
+SECONDARY_ECU_PKL = "secondary_ecu.pkl"
+ECU_SERVER_PKL = "server.pkl"
 
 
 def generate_key(keyname):
