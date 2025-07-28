@@ -1,9 +1,9 @@
 {
   "repositories": {
-    "imagerepo": {
+    "image_repo": {
       "mirrors": ["file:///<full_client_dir>/unverified/image_repo"]
     },
-    "director": {
+    "director_repo": {
       "mirrors": ["file:///<full_client_dir>/unverified/director_repo"]
     }
   },

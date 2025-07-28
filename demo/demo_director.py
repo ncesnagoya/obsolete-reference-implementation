@@ -56,6 +56,7 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
+import pickle
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -79,7 +80,6 @@ def clean_slate(use_new_keys=False):
 
   global director_service_instance
 
-  # 25.07.14 nosho 初期化時に削除するディレクトリを指定
   director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
   dirs_to_remove = ['111', '112', '113', 'democar']
 
@@ -153,6 +153,9 @@ def clean_slate(use_new_keys=False):
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 
   write_to_live()
+
+  # directorインスタンス化情報をファイルに保存
+  save_director_obj(director_service_instance)
 
   host()
 
@@ -798,6 +801,9 @@ def listen():
   server.register_function(add_target_to_director, 'add_target_to_director')
   server.register_function(write_to_live, 'write_director_repo')
 
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(demo_image_repo.get_file, 'get_file')
+
   server.register_function(
       inventory.get_last_vehicle_manifest, 'get_last_vehicle_manifest')
   server.register_function(
@@ -844,6 +850,8 @@ def listen():
   director_service_thread.setDaemon(True)
   director_service_thread.start()
 
+  # 2025.07.17 nosho ポート開けたままに変更
+  threading.Event().wait()
 
 
 
@@ -1245,8 +1253,17 @@ def kill_server():
     repo_server_process = None
 
 
-def delivering_an_update(ecu_serial):
-  firmware_fname = filepath_in_repo = 'firmware.img'
+# target fileを指定できるように変更
+def delivering_an_update(ecu_serial, target="firmware.img"):
+
+  # 2025.07.28 directorオブジェクトがなければ読み込み
+  global director_service_instance
+  if director_service_instance is None:
+    director_service_instance = load_director_obj()
+    print(director_service_instance.vehicle_repositories.keys())
+
+  firmware_fname = os.path.join(demo.DIRECTOR_REPO_DIR, target)
+  filepath_in_repo = target
   vin='democar'
   add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
   write_to_live(vin_to_update=vin)
@@ -1849,3 +1866,41 @@ def delivering_an_in_toto(ecu_serial):
   write_to_live(vin_to_update=vin)
 
   return
+
+
+def save_director_obj(director_service_instance):
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータをファイルに書き出し
+  """
+  data = {
+    "director": director_service_instance,
+    # "listener_thread": listener_thread
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.DIRECTOR_REPO_DIR, demo.ECU_SERVER_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_director_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.DIRECTOR_REPO_DIR, demo.ECU_SERVER_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  director_service_instance = data["director"]
+  # listener_thread = data["listener_thread"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return director_service_instance

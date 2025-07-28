@@ -42,6 +42,8 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
+import base64
+import pickle
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -147,11 +149,14 @@ def clean_slate(repo_dir='imagerepo', use_new_keys=False):
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.0.txt'), 'BCU1.0.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.1.txt'), 'BCU1.1.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.2.txt'), 'BCU1.2.txt')
-  add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
+  # add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 
   write_to_live()
+
+  # # repoインスタンス化情報をファイルに保存
+  # save_imagerepo_obj(repo)
 
   host()
 
@@ -305,6 +310,9 @@ def listen():
       'add_target_to_image_repo')
   server.register_function(write_to_live, 'write_image_repo')
 
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(get_file, 'get_file')
+
   # Attack 1: Arbitrary Package Attack on Image Repository without
   # Compromised Keys.
   # README.md section 3.2
@@ -330,6 +338,8 @@ def listen():
   xmlrpc_service_thread.setDaemon(True)
   xmlrpc_service_thread.start()
 
+  # 2025.07.17 nosho ポート開けたままに変更
+  threading.Event().wait()
 
 
 
@@ -607,13 +617,21 @@ def kill_server():
     server_process = None
 
 
-def delivering_an_update():
-  firmware_fname = filepath_in_repo = 'firmware.img'
-  open(firmware_fname, 'w').write('Fresh firmware image')
+# 2025.07.14 nosho targetファイルを指定できるように変更指定なしはfirmware.img
+def delivering_an_update(target='firmware.img'):
+  # リポジトリ初期化情報を再定義
+  init_imagerepo()
+
+  firmware_fname = os.path.join(demo.IMAGE_REPO_DIR, target)
+  filepath_in_repo = target
+  if not os.path.isfile(firmware_fname):
+      print(f"[INFO] {firmware_fname} が存在しません。ファイルを作成します。")
+      open(firmware_fname, 'w').write('Fresh firmware image')
   add_target_to_imagerepo(firmware_fname, filepath_in_repo)
   write_to_live()
 
   return
+
 
 def delivering_an_update2():
   firmware_fname = filepath_in_repo = 'firmware2.img'
@@ -622,6 +640,7 @@ def delivering_an_update2():
   write_to_live()
 
   return
+
 
 def add_eviltarget_and_write_to_live():
   """
@@ -675,3 +694,95 @@ def delivering_an_in_toto():
     write_to_live()
 
     return
+
+
+# 2025.07.18 nosho リモートでファイルを転送するための関数
+def get_file(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        return encoded
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+
+def log_subprocess_output(pipe, prefix):
+    for line in iter(pipe.readline, b''):
+        print(f"{prefix}: {line.rstrip()}")
+
+
+def save_imagerepo_obj(repo):
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータをファイルに書き出し
+  """
+  data = {
+    "repo": repo,
+    # "listener_thread": listener_thread
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.IMAGE_REPO_DIR, demo.ECU_SERVER_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_imagerepo_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.IMAGE_REPO_DIR, demo.ECU_SERVER_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  repo = data["repo"]
+  # listener_thread = data["listener_thread"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return repo
+
+
+def init_imagerepo():
+  """
+    新規のメタデータを作成するたびに初期化が必要
+  """
+
+  # 2025.07.28 repoオブジェクトがなければ読み込み
+  global repo
+  if repo is None:
+    repo = rt.load_repository(demo.IMAGE_REPO_NAME)
+
+  print(LOG_PREFIX + 'Loading all keys')
+
+  key_root_pub = demo.import_public_key('mainroot')
+  key_root_pri = demo.import_private_key('mainroot')
+  key_timestamp_pub = demo.import_public_key('maintimestamp')
+  key_timestamp_pri = demo.import_private_key('maintimestamp')
+  key_snapshot_pub = demo.import_public_key('mainsnapshot')
+  key_snapshot_pri = demo.import_private_key('mainsnapshot')
+  key_targets_pub = demo.import_public_key('maintargets')
+  key_targets_pri = demo.import_private_key('maintargets')
+  key_role1_pub = demo.import_public_key('mainrole1')
+  key_role1_pri = demo.import_private_key('mainrole1')
+
+
+  # Add top level keys to the main repository.
+
+  repo.root.add_verification_key(key_root_pub)
+  repo.timestamp.add_verification_key(key_timestamp_pub)
+  repo.snapshot.add_verification_key(key_snapshot_pub)
+  repo.targets.add_verification_key(key_targets_pub)
+  repo.root.load_signing_key(key_root_pri)
+  repo.timestamp.load_signing_key(key_timestamp_pri)
+  repo.snapshot.load_signing_key(key_snapshot_pri)
+  repo.targets.load_signing_key(key_targets_pri)
+
+  # 書き出し（または writeall）
+  repo.write()

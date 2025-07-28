@@ -37,12 +37,16 @@ import os # For paths and makedirs
 import shutil # For copyfile
 import threading # for the demo listener
 import time
-
+# 以下のimport文はPython2にも対応した形
 from six.moves import xmlrpc_client
 from six.moves import xmlrpc_server
 from six.moves import range
 import socket # to catch listening failures from six's xmlrpc server
-
+# Python3用のxmlrpcサーバーimport文
+import xmlrpc.client
+import base64
+import requests
+import pickle
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -100,8 +104,9 @@ def clean_slate(
   # if client_directory_name is not None:
   #   CLIENT_DIRECTORY = client_directory_name
   # else:
+  # scudoデモ用に指定
   CLIENT_DIRECTORY = os.path.join(
-      uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+      demo.PRIMARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
 
@@ -117,14 +122,16 @@ def clean_slate(
   # the pinning.json file in place, etc. First, schedule the deletion of this
   # directory to occur when the script ends (so that it's deleted even if an
   # error occurs here).
-  atexit.register(clean_up_temp_folder)
+  # 以下コードがあると作成したプライマリのファイルが削除される
+  # atexit.register(clean_up_temp_folder)
   try:
+    print("CLIENT_DIRECTORY", CLIENT_DIRECTORY)
     uptane.common.create_directory_structure_for_client(
         CLIENT_DIRECTORY, create_primary_pinning_file(),
         {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
         demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
         'metadata', 'root' + demo.METADATA_EXTENSION)})
-    atexit.register(clean_up_temp_folder)
+    # atexit.register(clean_up_temp_folder)
 
   except IOError:
     raise Exception(RED + 'Unable to create Primary client directory '
@@ -173,8 +180,9 @@ def clean_slate(
   generate_signed_vehicle_manifest()
   submit_vehicle_manifest_to_director()
 
-
-
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+  save_primary_obj(primary_ecu)
 
 
 def create_primary_pinning_file():
@@ -187,12 +195,16 @@ def create_primary_pinning_file():
   """
   with open(demo.DEMO_PRIMARY_PINNING_FNAME, 'r') as fobj:
     pinnings = json.load(fobj)
+    print("demo.DEMO_PRIMARY_PINNING_FNAME", demo.DEMO_PRIMARY_PINNING_FNAME)
+    print("demo.DIRECTOR_REPO_NAME", demo.DIRECTOR_REPO_NAME)
+    print("pinnings", pinnings)
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_primary_' + demo.get_random_string(5))
 
+  # 2025.07.22 nosho 作成したpinned.jsonをすぐに消さない
   # Trigger deletion of temp_secondary* folder after demo script ends
-  atexit.register(clean_up_temp_file, fname_to_create)
+  # atexit.register(clean_up_temp_file, fname_to_create)
 
   assert 1 == len(pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors']), 'Config error.'
 
@@ -200,7 +212,6 @@ def create_primary_pinning_file():
   mirror = mirror.replace('<VIN>', _vin)
 
   pinnings['repositories'][demo.DIRECTOR_REPO_NAME]['mirrors'][0] = mirror
-
 
   with open(fname_to_create, 'wb') as fobj:
     fobj.write(canonicaljson.encode_canonical_json(pinnings))
@@ -238,6 +249,14 @@ def update_cycle():
   #
 
   log.debug('Start Update Primary.')
+
+    # 2025.07.24 nosho primary_ecuオブジェクトがなければファイルから読み込み
+  global primary_ecu
+  global listener_thread
+  if primary_ecu is None:
+    primary_ecu = load_primary_obj()
+    print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -339,9 +358,19 @@ def update_cycle():
   generate_signed_vehicle_manifest()
   submit_vehicle_manifest_to_director()
 
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+  if listener_thread is None:
+    listener_thread = threading.Thread(target=listen)
+    listener_thread.setDaemon(True)
+    listener_thread.start()
+  print('\n' + GREEN + 'Primary is now listening for messages from ' +
+        'Secondaries.' + ENDCOLORS)
 
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_primary_obj(primary_ecu)
 
-
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 def generate_signed_vehicle_manifest():
@@ -723,3 +752,94 @@ def looping_update():
     except Exception as e:
       print(repr(e))
     time.sleep(1)
+
+
+# 他VMからHTTP経由でファイルを取得するための関数
+def download_file(server_url, remote_path, local_path):
+    proxy = xmlrpc.client.ServerProxy(server_url, allow_none=True)
+    print(f"Downloading {remote_path} from {server_url} ...")
+    filedata = proxy.get_file(remote_path)
+
+    if filedata.startswith("ERROR"):
+        print("Server error:", filedata)
+        return
+
+    with open(local_path, "wb") as f:
+        f.write(base64.b64decode(filedata))
+    print(f"Saved to {local_path}")
+
+
+# 他VMからHTTP経由でファイルを取得するための関数
+def download_and_save_file(url: str, save_dir: str):
+    """
+    指定URLからファイルをダウンロードし、指定ディレクトリに保存する関数。
+
+    Parameters:
+        url (str): ダウンロード元のURL
+        save_dir (str): 保存先ディレクトリ（存在しない場合は作成される）
+
+    Returns:
+        str: 保存されたファイルのフルパス
+    """
+    try:
+        # ファイルデータを取得
+        response = requests.get(url)
+        response.raise_for_status()  # ステータスコードが200以外なら例外
+
+        # URLからファイル名を抽出
+        filename = os.path.basename(url)
+
+        # 保存先ディレクトリを作成（存在しなければ）
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 保存先パスを作成
+        save_path = os.path.join(save_dir, filename)
+
+        # ファイルを書き込み（バイナリモード）
+        with open(save_path, "wb") as f:
+            f.write(response.content)
+
+        print(f"ファイルを保存しました: {save_path}")
+        return save_path
+
+    except requests.RequestException as e:
+        print(f"ダウンロードに失敗しました: {e}")
+        return None
+
+
+def save_primary_obj(primary_ecu):
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータをファイルに書き出し
+  """
+  data = {
+    "primary": primary_ecu,
+    # "listener_thread": listener_thread
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_primary_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  primary_ecu = data["primary"]
+  # listener_thread = data["listener_thread"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return primary_ecu

@@ -43,7 +43,7 @@ import json # for customizing the Secondary's pinnings file.
 import canonicaljson
 
 from six.moves import xmlrpc_client
-
+import pickle
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -106,8 +106,9 @@ def clean_slate(
   if primary_port is not None:
     _primary_port = primary_port
 
+  # scudoデモ用に指定
   CLIENT_DIRECTORY = os.path.join(
-      uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+      demo.SECONDARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
@@ -184,8 +185,8 @@ def clean_slate(
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
-
-
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_secondary_obj(secondary_ecu)
 
 
 def create_secondary_pinning_file():
@@ -537,6 +538,8 @@ def update_cycle():
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
+  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  save_secondary_obj(secondary_ecu)
 
 
 
@@ -686,3 +689,40 @@ def looping_update():
       print(repr(e))
       pass
     time.sleep(1)
+
+
+def save_secondary_obj(secondary_ecu):
+  """
+    2025.07.24 nosho
+    初期化時にインスタンス化したデータをファイルに書き出し
+    """
+  data = {
+    "secondary": secondary_ecu,
+  }
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
+
+  with open(save_path, "wb") as f:
+    pickle.dump(data, f)
+  print(f"[保存完了] {save_path} に状態を保存しました。\n")
+
+
+def load_secondary_obj():
+  """
+  2025.07.24 nosho
+  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
+  """
+
+  # 保存先パスを作成
+  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
+
+  with open(save_path, "rb") as f:
+    data = pickle.load(f)
+
+  secondary_ecu = data["secondary"]
+  # client_dir = data["client_dir"]
+
+  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
+
+  return secondary_ecu

@@ -1,9 +1,9 @@
 {
   "repositories": {
-    "imagerepo": {
+    "image_repo": {
       "mirrors": ["http://localhost:30301"]
     },
-    "director": {
+    "director_repo": {
       "mirrors": ["http://localhost:30401/<VIN>"]
     }
   },
