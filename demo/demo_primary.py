@@ -42,11 +42,12 @@ from six.moves import xmlrpc_client
 from six.moves import xmlrpc_server
 from six.moves import range
 import socket # to catch listening failures from six's xmlrpc server
-# Python3用のxmlrpcサーバーimport文
+
+# HTTP経由の処理をする際に必要
 import xmlrpc.client
 import base64
-import requests
-import pickle
+# import requests
+
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -104,7 +105,7 @@ def clean_slate(
   # if client_directory_name is not None:
   #   CLIENT_DIRECTORY = client_directory_name
   # else:
-  # scudoデモ用に指定
+  # 2025.08.20 nosho scudoデモ用に指定
   CLIENT_DIRECTORY = os.path.join(
       demo.PRIMARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
   # Load the public timeserver key.
@@ -180,9 +181,8 @@ def clean_slate(
   generate_signed_vehicle_manifest()
   submit_vehicle_manifest_to_director()
 
-  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
-  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
-  save_primary_obj(primary_ecu)
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 def create_primary_pinning_file():
@@ -247,16 +247,10 @@ def update_cycle():
   #
   # FIRST: TIME
   #
+  # 2025.08.19 nosho XMLRPCサーバから関数を実行する場合に宣言が必要
+  global listener_thread
 
   log.debug('Start Update Primary.')
-
-    # 2025.07.24 nosho primary_ecuオブジェクトがなければファイルから読み込み
-  global primary_ecu
-  global listener_thread
-  if primary_ecu is None:
-    primary_ecu = load_primary_obj()
-    print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
-
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -358,19 +352,6 @@ def update_cycle():
   generate_signed_vehicle_manifest()
   submit_vehicle_manifest_to_director()
 
-  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
-  if listener_thread is None:
-    listener_thread = threading.Thread(target=listen)
-    listener_thread.setDaemon(True)
-    listener_thread.start()
-  print('\n' + GREEN + 'Primary is now listening for messages from ' +
-        'Secondaries.' + ENDCOLORS)
-
-  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
-  save_primary_obj(primary_ecu)
-
-  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
-  threading.Event().wait()
 
 
 def generate_signed_vehicle_manifest():
@@ -708,6 +689,12 @@ def listen():
   # server.register_function(compromise_primary_and_deliver_arbitrary,
   #     'compromise_primary_and_deliver_arbitrary')
 
+  # 2025.08.18 nosho Primaryを外部操作する関数追加
+  server.register_function(update_cycle, 'update_cycle')
+  server.register_function(
+    primary_ecu.generate_signed_vehicle_manifest, 'generate_svm')
+  server.register_function(
+    submit_vehicle_manifest_to_director, 'submit_vmd')
 
   print('Primary will now listen on port ' + str(successful_port))
   server.serve_forever()
@@ -770,76 +757,38 @@ def download_file(server_url, remote_path, local_path):
 
 
 # 他VMからHTTP経由でファイルを取得するための関数
-def download_and_save_file(url: str, save_dir: str):
-    """
-    指定URLからファイルをダウンロードし、指定ディレクトリに保存する関数。
+# def download_and_save_file(url: str, save_dir: str):
+#     """
+#     指定URLからファイルをダウンロードし、指定ディレクトリに保存する関数。
 
-    Parameters:
-        url (str): ダウンロード元のURL
-        save_dir (str): 保存先ディレクトリ（存在しない場合は作成される）
+#     Parameters:
+#         url (str): ダウンロード元のURL
+#         save_dir (str): 保存先ディレクトリ（存在しない場合は作成される）
 
-    Returns:
-        str: 保存されたファイルのフルパス
-    """
-    try:
-        # ファイルデータを取得
-        response = requests.get(url)
-        response.raise_for_status()  # ステータスコードが200以外なら例外
+#     Returns:
+#         str: 保存されたファイルのフルパス
+#     """
+#     try:
+#         # ファイルデータを取得
+#         response = requests.get(url)
+#         response.raise_for_status()  # ステータスコードが200以外なら例外
 
-        # URLからファイル名を抽出
-        filename = os.path.basename(url)
+#         # URLからファイル名を抽出
+#         filename = os.path.basename(url)
 
-        # 保存先ディレクトリを作成（存在しなければ）
-        os.makedirs(save_dir, exist_ok=True)
+#         # 保存先ディレクトリを作成（存在しなければ）
+#         os.makedirs(save_dir, exist_ok=True)
 
-        # 保存先パスを作成
-        save_path = os.path.join(save_dir, filename)
+#         # 保存先パスを作成
+#         save_path = os.path.join(save_dir, filename)
 
-        # ファイルを書き込み（バイナリモード）
-        with open(save_path, "wb") as f:
-            f.write(response.content)
+#         # ファイルを書き込み（バイナリモード）
+#         with open(save_path, "wb") as f:
+#             f.write(response.content)
 
-        print(f"ファイルを保存しました: {save_path}")
-        return save_path
+#         print(f"ファイルを保存しました: {save_path}")
+#         return save_path
 
-    except requests.RequestException as e:
-        print(f"ダウンロードに失敗しました: {e}")
-        return None
-
-
-def save_primary_obj(primary_ecu):
-  """
-  2025.07.24 nosho
-  初期化時にインスタンス化したデータをファイルに書き出し
-  """
-  data = {
-    "primary": primary_ecu,
-    # "listener_thread": listener_thread
-  }
-
-  # 保存先パスを作成
-  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
-
-  with open(save_path, "wb") as f:
-    pickle.dump(data, f)
-  print(f"[保存完了] {save_path} に状態を保存しました。\n")
-
-
-def load_primary_obj():
-  """
-  2025.07.24 nosho
-  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
-  """
-
-  # 保存先パスを作成
-  save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.PRIMARY_ECU_PKL)
-
-  with open(save_path, "rb") as f:
-    data = pickle.load(f)
-
-  primary_ecu = data["primary"]
-  # listener_thread = data["listener_thread"]
-
-  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
-
-  return primary_ecu
+#     except requests.RequestException as e:
+#         print(f"ダウンロードに失敗しました: {e}")
+#         return None
