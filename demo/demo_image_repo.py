@@ -331,6 +331,10 @@ def listen():
   server.register_function(undo_keyed_arbitrary_package_attack,
       'undo_keyed_arbitrary_package_attack')
 
+  # 2025.09.02 nosho Arbitrary software attack（デモ用）／回復の追加
+  server.register_function(add_eviltarget_and_write_to_live,
+                           'add_eviltarget_and_write_to_live')
+
   print(LOG_PREFIX + 'Starting Image Repo Services Thread: will now listen on '
       'port ' + str(demo.IMAGE_REPO_SERVICE_PORT))
   xmlrpc_service_thread = threading.Thread(target=server.serve_forever)
@@ -638,13 +642,14 @@ def delivering_an_update2():
   return
 
 
-def add_eviltarget_and_write_to_live():
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def add_eviltarget_and_write_to_live(filename='firmware.img'):
   """
   High-level version of add_target_to_imagerepo() that creates the target
   file, and writes the changes to the live repository.
   """
-
-  filename = 'firmware.img'
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
+  # filename = 'firmware.img'
   file_content = 'evil content'
 
   # Create 'filename' in the current working directory, but it should

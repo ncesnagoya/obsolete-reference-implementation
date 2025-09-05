@@ -842,6 +842,24 @@ def listen():
   server.register_function(undo_sign_with_compromised_keys_attack,
       'undo_sign_with_compromised_keys_attack')
 
+  # 2025.09.02 nosho replay攻撃（デモ用）／回復の追加
+  server.register_function(backup_metadata, 'backup_metadata')
+  server.register_function(replay_metadata, 'replay_metadata')
+  server.register_function(restore_metadata, 'restore_metadata')
+
+  # 2025.09.02 nosho Arbitrary software attack（デモ用）／回復の追加
+  server.register_function(sign_without_compromised_keys_attack,
+                           'sign_without_compromised_keys_attack')
+  server.register_function(undo_sign_without_compromised_keys_attack,
+                           'undo_sign_without_compromised_keys_attack')
+  server.register_function(add_eviltarget_and_write_to_live,
+                           'add_eviltarget_and_write_to_live')
+
+  # 2025.09.04 nosho mix and match攻撃の追加
+  server.register_function(mix_and_match_attack, 'mix_and_match_attack')
+  server.register_function(undo_mix_and_match_attack,
+                           'undo_mix_and_match_attack')
+
   print(LOG_PREFIX + 'Starting Director Services Thread: will now listen on '
       'port ' + str(demo.DIRECTOR_SERVER_PORT))
   director_service_thread = threading.Thread(target=server.serve_forever)
@@ -1272,7 +1290,8 @@ def delivering_an_update2(ecu_serial):
   return
 
 
-def sign_without_compromised_keys_attack(vin=None):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def sign_without_compromised_keys_attack(vin=None, target_file="firmware.img"):
   """
   <Purpose>
     Re-generate Timestamp, Snapshot, and Targets metadata for all vehicles and
@@ -1303,13 +1322,15 @@ def sign_without_compromised_keys_attack(vin=None):
   print(LOG_PREFIX + 'ATTACK: arbitrary metadata, old key, all vehicles')
 
   # ///////////////////////
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'firmware.img')
+      'targets', target_file)
 
   # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
   # SUBDIRECTORY IN THE REPOSITORY.
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   backup_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'backup_firmware.img')
+      'targets', f'backup_{target_file}')
 
   if not os.path.exists(full_target_filepath):
     raise Exception('The provided target file is not already in either the '
@@ -1392,10 +1413,11 @@ def sign_without_compromised_keys_attack(vin=None):
     os.rename(os.path.join(repo_dir, 'metadata.livetemp'),
         os.path.join(repo_dir, 'metadata'))
 
-  print(LOG_PREFIX + 'COMPLETED ATTACK')
+  print(LOG_PREFIX + f'COMPLETED ATTACK on {target_file}')
 
 
-def undo_sign_without_compromised_keys_attack(vin=None):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def undo_sign_without_compromised_keys_attack(vin=None, target_file="firmware.img"):
   """
   <Purpose>
     Undo the actions executed by sign_with_compromised_keys_attack().  Namely,
@@ -1419,13 +1441,15 @@ def undo_sign_without_compromised_keys_attack(vin=None):
   """
 
   # ////////////////////////
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'firmware.img')
+      'targets', target_file)
 
   # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
   # SUBDIRECTORY IN THE REPOSITORY.
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   backup_full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'backup_firmware.img')
+      'targets', f'backup_{target_file}')
 
   if not os.path.exists(backup_full_target_filepath) or not os.path.exists(full_target_filepath):
     raise Exception('The expected backup or attacked files do not exist. No '
@@ -1493,16 +1517,18 @@ def undo_sign_without_compromised_keys_attack(vin=None):
     repository.snapshot.load_signing_key(valid_snapshot_private_key)
     repository.timestamp.load_signing_key(valid_timestamp_private_key)
 
-  print(LOG_PREFIX + 'COMPLETED UNDO ATTACK')
+  print(LOG_PREFIX + f'COMPLETED UNDO ATTACK on {target_file}')
 
 
-def add_eviltarget_and_write_to_live(ecu_serial):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def add_eviltarget_and_write_to_live(ecu_serial, filename='firmware.img'):
   """
   High-level version of add_target_to_director() that creates 'filename'
   and writes the changes to the live directory repository.
   """
 
-  filename = 'firmware.img'
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
+  # filename = 'firmware.img'
   file_content = 'evil content'
   vin = 'democar'
   # Create 'filename' in the current working directory, but it should
