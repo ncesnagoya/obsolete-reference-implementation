@@ -217,7 +217,10 @@ def create_secondary_pinning_file():
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_secondary_' + demo.get_random_string(5))
-  atexit.register(clean_up_temp_file, fname_to_create)
+
+  # 2025.07.22 nosho 作成したpinned.jsonをすぐに消さない
+  # atexit.register(clean_up_temp_file, fname_to_create)
+
   # To delete the temp pinned file after the script ends
   for repo_name in pinnings['repositories']:
 
