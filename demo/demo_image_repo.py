@@ -43,6 +43,7 @@ import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
 import base64
+import base64
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -148,7 +149,7 @@ def clean_slate(repo_dir='imagerepo', use_new_keys=False):
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.0.txt'), 'BCU1.0.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.1.txt'), 'BCU1.1.txt')
   add_target_to_imagerepo(os.path.join(IMAGES_DIR, 'BCU1.2.txt'), 'BCU1.2.txt')
-  # add_target_to_imagerepo("image_repo/update.out", "intoto_artifact")
+
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 
@@ -313,12 +314,15 @@ def listen():
   # Register functions that can be called via XML-RPC, allowing users to add
   # target files to the image repository or to simulate attacks from a web
   # frontend.
+  # 2025.08.20 nosho 新規メタデータを準備する関数追加
+  server.register_function(delivering_an_update, 'delivering_an_update')
+
   server.register_function(add_target_to_imagerepo,
       'add_target_to_image_repo')
   server.register_function(write_to_live, 'write_image_repo')
 
-  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
-  server.register_function(get_file, 'get_file')
+  # # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  # server.register_function(get_file, 'get_file')
 
   # Attack 1: Arbitrary Package Attack on Image Repository without
   # Compromised Keys.
@@ -339,13 +343,17 @@ def listen():
   server.register_function(undo_keyed_arbitrary_package_attack,
       'undo_keyed_arbitrary_package_attack')
 
+  # 2025.09.02 nosho Arbitrary software attack（デモ用）／回復の追加
+  server.register_function(add_eviltarget_and_write_to_live,
+                           'add_eviltarget_and_write_to_live')
+
   print(LOG_PREFIX + 'Starting Image Repo Services Thread: will now listen on '
       'port ' + str(demo.IMAGE_REPO_SERVICE_PORT))
   xmlrpc_service_thread = threading.Thread(target=server.serve_forever)
   xmlrpc_service_thread.setDaemon(True)
   xmlrpc_service_thread.start()
 
-  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  # 2025.07.17 nosho ポート開けたままに変更
   threading.Event().wait()
 
 
@@ -623,9 +631,9 @@ def kill_server():
     server_process.kill()
     server_process = None
 
+
 # 2025.07.14 nosho targetファイルを指定できるように変更指定なしはfirmware.img
 def delivering_an_update(target='firmware.img'):
-  print("repo", repo)
   firmware_fname = os.path.join(demo.IMAGE_REPO_DIR, target)
   filepath_in_repo = target
   if not os.path.isfile(firmware_fname):
@@ -636,6 +644,7 @@ def delivering_an_update(target='firmware.img'):
 
   return
 
+
 def delivering_an_update2():
   firmware_fname = filepath_in_repo = 'firmware2.img'
   open(firmware_fname, 'w').write('Fresh firmware image')
@@ -644,13 +653,15 @@ def delivering_an_update2():
 
   return
 
-def add_eviltarget_and_write_to_live():
+
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def add_eviltarget_and_write_to_live(filename='firmware.img'):
   """
   High-level version of add_target_to_imagerepo() that creates the target
   file, and writes the changes to the live repository.
   """
-
-  filename = 'firmware.img'
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
+  # filename = 'firmware.img'
   file_content = 'evil content'
 
   # Create 'filename' in the current working directory, but it should
@@ -685,67 +696,16 @@ def convert_metadata_json_to_der(rolename):
   return
 
 
-# 2025.04.23 nosho in-totoで作成したファイルをimage repoに格納
-#  di.delivering_an_in_toto() /home/vagrant/demo/final_product/bin/update.out
-def delivering_an_in_toto():
-    print("実行カレントディレクトリ:", os.getcwd())
-    firmware_fname = os.path.join(
-      '..', 'in-toto', 'final_product', 'bin', 'update.out')
-    filepath_in_repo = 'update.out'
-    add_target_to_imagerepo(firmware_fname, filepath_in_repo)
-    write_to_live()
-
-    return
+# # 2025.07.18 nosho リモートでファイルを転送するための関数
+# def get_file(filepath):
+#     try:
+#         with open(filepath, "rb") as f:
+#             encoded = base64.b64encode(f.read()).decode("utf-8")
+#         return encoded
+#     except Exception as e:
+#         return f"ERROR: {str(e)}"
 
 
-# 2025.07.14 nosho repoの初期化
-def init_repo():
-  global repo
-  repo = rt.load_repository(demo.IMAGE_REPO_NAME)
-
-  key_root_pub = demo.import_public_key('mainroot')
-  key_root_pri = demo.import_private_key('mainroot')
-  key_timestamp_pub = demo.import_public_key('maintimestamp')
-  key_timestamp_pri = demo.import_private_key('maintimestamp')
-  key_snapshot_pub = demo.import_public_key('mainsnapshot')
-  key_snapshot_pri = demo.import_private_key('mainsnapshot')
-  key_targets_pub = demo.import_public_key('maintargets')
-  key_targets_pri = demo.import_private_key('maintargets')
-
-  # Add top level keys to the main repository.
-  repo.root.add_verification_key(key_root_pub)
-  repo.timestamp.add_verification_key(key_timestamp_pub)
-  repo.snapshot.add_verification_key(key_snapshot_pub)
-  repo.targets.add_verification_key(key_targets_pub)
-  repo.root.load_signing_key(key_root_pri)
-  repo.timestamp.load_signing_key(key_timestamp_pri)
-  repo.snapshot.load_signing_key(key_snapshot_pri)
-  repo.targets.load_signing_key(key_targets_pri)
-
-
-# 2025.07.18 nosho リモートでファイルを転送するための関数
-def get_file(filepath):
-    try:
-        with open(filepath, "rb") as f:
-            encoded = base64.b64encode(f.read()).decode("utf-8")
-        return encoded
-    except Exception as e:
-        return f"ERROR: {str(e)}"
-
-
-def log_subprocess_output(pipe, prefix):
-    for line in iter(pipe.readline, b''):
-        print(f"{prefix}: {line.rstrip()}")
-
-
-def kill_process_on_port(port):
-    """指定ポートを使っているプロセスがいれば強制終了する"""
-    try:
-        result = subprocess.check_output(['lsof', '-t', f'-i:{port}'])
-        pids = result.decode().strip().split('\n')
-        for pid in pids:
-            print(f"[INFO] Killing process on port {port}: PID {pid}")
-            os.kill(int(pid), signal.SIGKILL)
-            time.sleep(1)  # 少し待ってから起動した方が安定する
-    except subprocess.CalledProcessError:
-        print(f"[INFO] No process using port {port}")
+# def log_subprocess_output(pipe, prefix):
+#     for line in iter(pipe.readline, b''):
+#         print(f"{prefix}: {line.rstrip()}")

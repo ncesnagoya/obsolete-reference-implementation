@@ -43,7 +43,11 @@ import json # for customizing the Secondary's pinnings file.
 import canonicaljson
 
 from six.moves import xmlrpc_client
-import pickle
+# 2025.0819 nosho xmlrpcサーバ構築のため追記
+from six.moves import xmlrpc_server
+import threading
+import socket
+
 # Allow tab completion in the interactive Python shell.
 import readline, rlcompleter
 readline.parse_and_bind('tab: complete')
@@ -72,6 +76,9 @@ attacks_detected = ''
 
 most_recent_signed_ecu_manifest = None
 
+# 2025.08.20 nosho xmlserver用thread
+secondary_thread = None
+
 # log
 log = uptane.logging.getLogger('demo_Secondary')
 log.addHandler(uptane.file_handler)
@@ -96,6 +103,8 @@ def clean_slate(
   global nonce
   global CLIENT_DIRECTORY
   global attacks_detected
+  # 2025.08.20 nosho xmlserver用thread
+  global secondary_thread
 
   _vin = vin
   _ecu_serial = ecu_serial
@@ -106,6 +115,7 @@ def clean_slate(
   if primary_port is not None:
     _primary_port = primary_port
 
+  # scudoデモ用に指定
   CLIENT_DIRECTORY = os.path.join(
       demo.SECONDARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
@@ -133,7 +143,7 @@ def clean_slate(
   # Create directory structure for the client and copy the root files from the
   # repositories. First, schedule the deletion of this directory to occur when
   # the script ends (so that it's deleted even if an error occurs here).
-  # 以下コードがあると作成したプライマリのファイルが削除される
+  # 以下コードがあると作成したフォルダが削除される
   # atexit.register(clean_up_temp_folder)
   uptane.common.create_directory_structure_for_client(
       CLIENT_DIRECTORY, create_secondary_pinning_file(),
@@ -162,7 +172,11 @@ def clean_slate(
       firmware_fileinfo=factory_firmware_fileinfo,
       timeserver_public_key=key_timeserver_pub)
 
-
+ # 2025.08.20 nosho xmlrpcサーバ実行
+  if secondary_thread is None:
+    secondary_thread = threading.Thread(target=listen)
+    secondary_thread.setDaemon(True)
+    secondary_thread.start()
 
   try:
     register_self_with_director()
@@ -185,9 +199,8 @@ def clean_slate(
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
-  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
-  save_secondary_obj(secondary_ecu)
-
+  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  threading.Event().wait()
 
 
 def create_secondary_pinning_file():
@@ -370,10 +383,14 @@ def update_cycle():
   # flexibility.
 
   if len(secondary_ecu.validated_targets_for_this_ecu) == 0:
-    print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
-        text='No validated targets were found. Either the Director '
-        'did not instruct this ECU to install anything, or the target info '
-        'the Director provided could not be validated.')
+    # 2025.08.21 nosho print_baner時のエラー例外処理追加
+    try:
+      print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
+          text='No validated targets were found. Either the Director '
+          'did not instruct this ECU to install anything, or the target info '
+          'the Director provided could not be validated.')
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
     # print(YELLOW + 'No validated targets were found. Either the Director '
     #     'did not instruct this ECU to install anything, or the target info '
     #     'the Director provided could not be validated.' + ENDCOLORS)
@@ -398,8 +415,12 @@ def update_cycle():
   # TODO: <~> Cross-check this: we have the metadata now, so we and the Primary
   # should agree on whether or not there is an image to download.
   if not pserver.update_exists_for_ecu(secondary_ecu.ecu_serial):
-    print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
-        text='Primary reports that there is no update for this ECU.')
+    # 2025.08.21 nosho print_baner時のエラー例外処理追加
+    try:
+      print_banner(BANNER_NO_UPDATE, color=WHITE+BLACK_BG,
+          text='Primary reports that there is no update for this ECU.')
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
     # print(YELLOW + 'Primary reports that there is no update for this ECU.')
     log.debug('Submitting a request for a image to the Primary.')
     (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
@@ -460,10 +481,14 @@ def update_cycle():
   try:
     secondary_ecu.validate_image(image_fname)
   except tuf.DownloadLengthMismatchError:
-    print_banner(
-        BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
-        text='Image from Primary failed to validate: length mismatch. Image: ' +
-        repr(image_fname), sound=TADA)
+    # 2025.08.21 nosho print_baner時のエラー例外処理追加
+    try:
+      print_banner(
+          BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+          text='Image from Primary failed to validate: length mismatch. Image: ' +
+          repr(image_fname), sound=TADA)
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
     # TODO: Add length comparison instead, from error.
     attacks_detected += 'Image from Primary failed to validate: length ' + \
         'mismatch.\n'
@@ -471,10 +496,14 @@ def update_cycle():
     submit_ecu_manifest_to_primary()
     return
   except tuf.BadHashError:
-    print_banner(
-        BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
-        text='Image from Primary failed to validate: hash mismatch. Image: ' +
-        repr(image_fname), sound=TADA)
+    # 2025.08.21 nosho print_baner時のエラー例外処理追加
+    try:
+      print_banner(
+          BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+          text='Image from Primary failed to validate: hash mismatch. Image: ' +
+          repr(image_fname), sound=TADA)
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
     # TODO: Add hash comparison instead, from error.
     attacks_detected += 'Image from Primary failed to validate: hash ' + \
         'mismatch.\n'
@@ -485,10 +514,13 @@ def update_cycle():
 
 
   if secondary_ecu.firmware_fileinfo == expected_target_info:
-    print_banner(
-      BANNER_NO_UPDATE_NEEDED, color=WHITE+BLACK_BG,
-      text='We already have installed the firmware that the Director wants us '
-          'to install. Image: ' + repr(image_fname))
+    try:
+      print_banner(
+        BANNER_NO_UPDATE_NEEDED, color=WHITE+BLACK_BG,
+        text='We already have installed the firmware that the Director wants us '
+            'to install. Image: ' + repr(image_fname))
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
     generate_signed_ecu_manifest()
     submit_ecu_manifest_to_primary()
     return
@@ -517,25 +549,29 @@ def update_cycle():
   # save_secondary_obj(secondary_ecu)
 
   with open(current_firmware_filepath, 'rb') as file_object:
-    if file_object.read() == b'evil content':
-      # If every safeguard is defeated and a compromised update is delivered, a
-      # real Secondary can't necessarily know it has been compromised, as every
-      # check has passed. For the purposes of the demo, of course, we know when
-      # a compromise has been delivered, and we'll flash a Compromised screen
-      # to indicate a successful attack. We know this has happened because the
-      # demo should include 'evil content' in the file.  This requires,
-      # generally, a compromise of both Image Repo and Director keys.
-      print_banner(BANNER_COMPROMISED, color=WHITE+RED_BG,
-          text='A malicious update has been installed! Arbitrary package attack '
-          'successful: this Secondary has been compromised! Image: ' +
-          repr(expected_image_fname), sound=WITCH)
+    # 2025.08.21 nosho print_baner時のエラー例外処理追加
+    try:
+      if file_object.read() == b'evil content':
+        # If every safeguard is defeated and a compromised update is delivered, a
+        # real Secondary can't necessarily know it has been compromised, as every
+        # check has passed. For the purposes of the demo, of course, we know when
+        # a compromise has been delivered, and we'll flash a Compromised screen
+        # to indicate a successful attack. We know this has happened because the
+        # demo should include 'evil content' in the file.  This requires,
+        # generally, a compromise of both Image Repo and Director keys.
+        print_banner(BANNER_COMPROMISED, color=WHITE+RED_BG,
+            text='A malicious update has been installed! Arbitrary package attack '
+            'successful: this Secondary has been compromised! Image: ' +
+            repr(expected_image_fname), sound=WITCH)
 
-    else:
-      print_banner(
-          BANNER_UPDATED, color=WHITE+GREEN_BG,
-          text='Installed firmware received from Primary that was fully '
-          'validated by the Director and Image Repo. Image: ' +
-          repr(image_fname), sound=WON)
+      else:
+        print_banner(
+            BANNER_UPDATED, color=WHITE+GREEN_BG,
+            text='Installed firmware received from Primary that was fully '
+            'validated by the Director and Image Repo. Image: ' +
+            repr(image_fname), sound=WON)
+    except Exception as e:
+      log.error(f"update_cycle failed: {e}")
 
   if expected_target_info['filepath'].endswith('.txt'):
     print('The contents of the newly-installed firmware with filename ' +
@@ -548,10 +584,6 @@ def update_cycle():
   # Submit info on what is currently installed back to the Primary.
   generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
-
-  # 2025.07.24 nosho 初期設定データをバイナリに書き出し
-  save_secondary_obj(secondary_ecu)
-
 
 
 
@@ -700,133 +732,37 @@ def looping_update():
     time.sleep(1)
 
 
-def init_secondary(
-    client_dir,
-    use_new_keys=False,
-    #client_directory_name=None,
-    primary_host=None,
-    primary_port=None,
-    secondary_ecu=secondary_ecu,
-  ):
-  tuf.conf.repository_directory = client_dir # This setting should probably be called CLIENT_DIRECTORY instead, post-TAP4.
-
-  if primary_host is not None:
-    _primary_host = primary_host
-
-  if primary_port is not None:
-    _primary_port = primary_port
-
-  # CLIENT_DIRECTORY = os.path.join(
-  #     demo.SECONDARY_SERVER_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
-
-  # Load the public timeserver key.
-  if secondary_ecu is None:
-    key_timeserver_pub = demo.import_public_key('timeserver')
-
-    # Set starting firmware fileinfo (that this ECU had coming from the factory)
-    factory_firmware_fileinfo = {
-        'filepath': '/secondary_firmware.txt',
-        'fileinfo': {
-            'hashes': {
-                'sha512': '706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce',
-                'sha256': '6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44'},
-            'length': 37}}
-
-    # Prepare this ECU's key.
-    load_or_generate_key(use_new_keys)
-
-    # Generate a trusted initial time for the Secondary.
-    clock = tuf.formats.unix_timestamp_to_datetime(int(time.time()))
-    clock = clock.isoformat() + 'Z'
-    tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
+# 2025.08.20 nosho xmlserver用追記
+# Restrict Primary requests to a particular path.
+# Must specify RPC2 here for the XML-RPC interface to work.
+class RequestHandler(xmlrpc_server.SimpleXMLRPCRequestHandler):
+  rpc_paths = ('/RPC2',)
 
 
-  # Create directory structure for the client and copy the root files from the
-  # repositories. First, schedule the deletion of this directory to occur when
-  # the script ends (so that it's deleted even if an error occurs here).
-  # 以下コードがあると作成したプライマリのファイルが削除される
-  # atexit.register(clean_up_temp_folder)
-  
-    print("★ full_client_dir: ", client_dir)
-    print("★ director_repo_name: ", demo.DIRECTOR_REPO_NAME)
-    print("★ _vin: ", _vin)
-    print("★ _ecu_serial: ", _ecu_serial)
-    print("★ ecu_key: ", ecu_key)
-    print("★ clock: ", clock)
-    print("★ factory_firmware_fileinfo: ", factory_firmware_fileinfo)
-    print("★ key_timeserver_pub: ", key_timeserver_pub)
-  # Initialize a full verification Secondary ECU.
-  # This also generates a nonce to use in the next time query, sets the initial
-  # firmware fileinfo, etc.
-  secondary_ecu = secondary.Secondary(
-      full_client_dir=client_dir,
-      director_repo_name=demo.DIRECTOR_REPO_NAME,
-      vin=_vin,
-      ecu_serial=_ecu_serial,
-      ecu_key=ecu_key,
-      time=clock,
-      firmware_fileinfo=factory_firmware_fileinfo,
-      timeserver_public_key=key_timeserver_pub)
-  print("★ secondary_ecu: ", secondary_ecu)
+# 2025.08.20 nosho xmlserver用Listen()追記
+def listen():
+  server = None
+  successful_port = None
+  last_error = None
+  for port in demo.SECONDARY_SERVER_AVAILABLE_PORTS:
+    try:
+      server = xmlrpc_server.SimpleXMLRPCServer(
+          (demo.SECONDARY_SERVER_HOST, port),
+          requestHandler=RequestHandler, allow_none=True)
+    except socket.error as e:
+      print('Failed to bind Primary XMLRPC Listener to port ' + repr(port) +
+          '. Trying next port.')
+      last_error = e
 
-  try:
-    # 2025.-7.23 nosho global変数を引数からも渡せるように変更
-    register_self_with_director(secondary_ecu=secondary_ecu)
-  except xmlrpc_client.Fault:
-    print('Registration with Director failed. Now assuming this Secondary is '
-        'already registered.')
+    else:
+      successful_port = port
+      break
 
-  # try:
-  #   # 2025.-7.23 nosho global変数を引数からも渡せるように変更
-  #   register_self_with_primary(secondary_ecu=secondary_ecu,
-  #                              primary_host=primary_host,
-  #                              primary_port=primary_port)
-  # except xmlrpc_client.Fault:
-  #   print('Registration with Primary failed. Now assuming this Secondary is '
-  #       'already registered.')
+  if server is None: # All ports failed.
+    assert last_error is not None, 'Programming error'
+    raise last_error
 
+  server.register_function(update_cycle, 'update_cycle')
 
-  print('\n' + GREEN + ' Now simulating a Secondary that rolled off the '
-      'assembly line\n and has never seen an update.' + ENDCOLORS)
-  print("Generating this Secondary's first ECU Version Manifest and sending "
-      "it to the Primary.")
-
-  return secondary_ecu
-
-
-def save_secondary_obj(secondary_ecu):
-  """
-    2025.07.24 nosho
-    初期化時にインスタンス化したデータをファイルに書き出し
-    """
-  data = {
-    "secondary": secondary_ecu,
-  }
-
-  # 保存先パスを作成
-  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
-
-  with open(save_path, "wb") as f:
-    pickle.dump(data, f)
-  print(f"[保存完了] {save_path} に状態を保存しました。\n")
-
-
-def load_secondary_obj():
-  """
-  2025.07.24 nosho
-  初期化時にインスタンス化したデータを書き出したファイルからデータ読み込み
-  """
-
-  # 保存先パスを作成
-  save_path = os.path.join(demo.SECONDARY_SERVER_DIR, demo.SECONDARY_ECU_PKL)
-
-  with open(save_path, "rb") as f:
-    data = pickle.load(f)
-
-  secondary_ecu = data["secondary"]
-  # client_dir = data["client_dir"]
-
-  print(f"[読み出し完了] {save_path} から状態を読み込みました。\n")
-
-  return secondary_ecu
-
+  print('Secondary will now listen on port ' + str(successful_port))
+  server.serve_forever()

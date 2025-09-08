@@ -130,7 +130,8 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
   else:
     left_fill = int((cols - banner_width) / 2)
 
-  clear_screen()
+  # 2025.09.04 nosho バナーが出力されてもログを追えるように変更
+  # clear_screen()
 
   # Print banner, horizontally left and right padded
   for line in banner_array:
@@ -161,7 +162,9 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
 
     # Raise exception if banner and text exceed terminal height
     if len(banner_array) + len(text_array) > rows:
-      raise Exception("Text exceeds terminal height.")
+      # 2025.09.04 nosho 高さ制限でデモが落ちないように変更
+      # raise Exception("Text exceeds terminal height.")
+      print("warning : Text exceeds terminal height.")
 
     for output in text_array:
       output_width = cols - 2 * margin_len
@@ -188,7 +191,8 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
 
   if show_for:
     time.sleep(show_for)
-    clear_screen()
+    # 2025.09.04 nosho バナーが出力されてもログを追えるように変更 
+    # clear_screen()
 
 
 

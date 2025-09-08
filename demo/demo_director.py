@@ -79,11 +79,11 @@ def clean_slate(use_new_keys=False):
 
   # global director_service_instance
 
-  # # 25.07.14 nosho 初期化時に削除するディレクトリを指定
-  # director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
+  director_dir = os.path.join(uptane.WORKING_DIR, demo.DIRECTOR_REPO_NAME)
   dirs_to_remove = ['111', '112', '113', 'democar']
 
   # Create a directory for the Director's files.
+  # 2025.08.20 nosho 初期化時に不要なディレクトリ削除は別で実行済み
   for d in dirs_to_remove:
   # if os.path.exists(director_dir):
     if os.path.exists(d):
@@ -128,9 +128,8 @@ def clean_slate(use_new_keys=False):
   #     key_targets_pri=key_dirtarg_pri,
   #     key_targets_pub=key_dirtarg_pub)
 
-  # for vin in KNOWN_VINS:
-  #   print("vin", vin)
-  #   director_service_instance.add_new_vehicle(vin)
+  for vin in KNOWN_VINS:
+    director_service_instance.add_new_vehicle(vin)
 
   # You can tell the Director about ECUs this way:
   # test_ecu_public_key = demo.import_public_key('secondary')
@@ -146,7 +145,6 @@ def clean_slate(use_new_keys=False):
   # the Image Repository.
   for vin in inventory.ecus_by_vin:
     for ecu in inventory.ecus_by_vin[vin]:
-      print("directorのtargets:", ecu, demo.IMAGE_REPO_TARGETS_DIR)
       add_target_to_director(
           os.path.join(demo.IMAGE_REPO_TARGETS_DIR, 'infotainment_firmware.txt'),
           'infotainment_firmware.txt',
@@ -815,11 +813,14 @@ def listen():
 
   # Provide absolute path for this, or path relative to the Director's repo
   # directory.
+  # 2025.08.20 nosho 新規メタデータを準備する関数追加
+  server.register_function(delivering_an_update, 'delivering_an_update')
+
   server.register_function(add_target_to_director, 'add_target_to_director')
   server.register_function(write_to_live, 'write_director_repo')
 
-  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
-  server.register_function(demo_image_repo.get_file, 'get_file')
+  # # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  # server.register_function(demo_image_repo.get_file, 'get_file')
 
   server.register_function(
       inventory.get_last_vehicle_manifest, 'get_last_vehicle_manifest')
@@ -861,14 +862,33 @@ def listen():
   server.register_function(undo_sign_with_compromised_keys_attack,
       'undo_sign_with_compromised_keys_attack')
 
+  # 2025.09.02 nosho replay攻撃（デモ用）／回復の追加
+  server.register_function(backup_metadata, 'backup_metadata')
+  server.register_function(replay_metadata, 'replay_metadata')
+  server.register_function(restore_metadata, 'restore_metadata')
+
+  # 2025.09.02 nosho Arbitrary software attack（デモ用）／回復の追加
+  server.register_function(sign_without_compromised_keys_attack,
+                           'sign_without_compromised_keys_attack')
+  server.register_function(undo_sign_without_compromised_keys_attack,
+                           'undo_sign_without_compromised_keys_attack')
+  server.register_function(add_eviltarget_and_write_to_live,
+                           'add_eviltarget_and_write_to_live')
+
+  # 2025.09.04 nosho mix and match攻撃の追加
+  server.register_function(mix_and_match_attack, 'mix_and_match_attack')
+  server.register_function(undo_mix_and_match_attack,
+                           'undo_mix_and_match_attack')
+
   print(LOG_PREFIX + 'Starting Director Services Thread: will now listen on '
       'port ' + str(demo.DIRECTOR_SERVER_PORT))
   director_service_thread = threading.Thread(target=server.serve_forever)
   director_service_thread.setDaemon(True)
   director_service_thread.start()
 
-  # 2025.07.17 noshoポート開けたままに無限ループ →処理が重すぎるため変更
+  # 2025.07.17 nosho ポート開けたままに変更
   threading.Event().wait()
+
 
 
 
@@ -1269,11 +1289,11 @@ def kill_server():
     repo_server_process = None
 
 
-def delivering_an_update(ecu_serial, target="firmware.img"):
-  # 本来はimagerepoからtargetとってくる
+# 2025.08.20 nosho target fileを指定できるように変更
+def delivering_an_update(ecu_serial, vin="democar", target="firmware.img"):
   firmware_fname = os.path.join(demo.DIRECTOR_REPO_DIR, target)
   filepath_in_repo = target
-  vin='democar'
+  # vin='democar'
   add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
   write_to_live(vin_to_update=vin)
 
@@ -1290,7 +1310,8 @@ def delivering_an_update2(ecu_serial):
   return
 
 
-def sign_without_compromised_keys_attack(vin=None):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def sign_without_compromised_keys_attack(vin=None, target_file="firmware.img"):
   """
   <Purpose>
     Re-generate Timestamp, Snapshot, and Targets metadata for all vehicles and
@@ -1321,13 +1342,15 @@ def sign_without_compromised_keys_attack(vin=None):
   print(LOG_PREFIX + 'ATTACK: arbitrary metadata, old key, all vehicles')
 
   # ///////////////////////
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'firmware.img')
+      'targets', target_file)
 
   # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
   # SUBDIRECTORY IN THE REPOSITORY.
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   backup_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'backup_firmware.img')
+      'targets', f'backup_{target_file}')
 
   if not os.path.exists(full_target_filepath):
     raise Exception('The provided target file is not already in either the '
@@ -1410,10 +1433,11 @@ def sign_without_compromised_keys_attack(vin=None):
     os.rename(os.path.join(repo_dir, 'metadata.livetemp'),
         os.path.join(repo_dir, 'metadata'))
 
-  print(LOG_PREFIX + 'COMPLETED ATTACK')
+  print(LOG_PREFIX + f'COMPLETED ATTACK on {target_file}')
 
 
-def undo_sign_without_compromised_keys_attack(vin=None):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def undo_sign_without_compromised_keys_attack(vin=None, target_file="firmware.img"):
   """
   <Purpose>
     Undo the actions executed by sign_with_compromised_keys_attack().  Namely,
@@ -1437,13 +1461,15 @@ def undo_sign_without_compromised_keys_attack(vin=None):
   """
 
   # ////////////////////////
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'firmware.img')
+      'targets', target_file)
 
   # TODO: NOTE THAT THIS ATTACK SCRIPT BREAKS IF THE TARGET FILE IS IN A
   # SUBDIRECTORY IN THE REPOSITORY.
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
   backup_full_target_filepath = os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'targets', 'backup_firmware.img')
+      'targets', f'backup_{target_file}')
 
   if not os.path.exists(backup_full_target_filepath) or not os.path.exists(full_target_filepath):
     raise Exception('The expected backup or attacked files do not exist. No '
@@ -1511,16 +1537,18 @@ def undo_sign_without_compromised_keys_attack(vin=None):
     repository.snapshot.load_signing_key(valid_snapshot_private_key)
     repository.timestamp.load_signing_key(valid_timestamp_private_key)
 
-  print(LOG_PREFIX + 'COMPLETED UNDO ATTACK')
+  print(LOG_PREFIX + f'COMPLETED UNDO ATTACK on {target_file}')
 
 
-def add_eviltarget_and_write_to_live(ecu_serial):
+# 2025.09.02 nosho 攻撃対象ファイルを指定できるように修正
+def add_eviltarget_and_write_to_live(ecu_serial, filename='firmware.img'):
   """
   High-level version of add_target_to_director() that creates 'filename'
   and writes the changes to the live directory repository.
   """
 
-  filename = 'firmware.img'
+  # 2025.09.02 nosho 変更対象のファイルのハードコーディングを修正
+  # filename = 'firmware.img'
   file_content = 'evil content'
   vin = 'democar'
   # Create 'filename' in the current working directory, but it should
@@ -1863,65 +1891,3 @@ def restore_metadata(vin):
     targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
         targets_filename)
     shutil.move(current_targets_backup, targets_path)
-
-
-# 2025.04.23 nosho in-totoで作成したファイルをdirector repoに格納
-def delivering_an_in_toto(ecu_serial):
-  firmware_fname = os.path.join(
-      '..', 'in-toto', 'final_product', 'bin', 'update.out')
-  filepath_in_repo = 'update.out'
-  vin='democar'
-  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial)
-  write_to_live(vin_to_update=vin)
-
-  return
-
-
-# 2025.07.14 nosho 初期化関数用意
-def init_repo():
-  global director_service_instance
-
-  # 25.07.14 nosho 初期化時に削除するディレクトリを指定
-  director_dir = os.path.join(uptane.WORKING_DIR, 'director_repo')
-
-  key_dirroot_pub = demo.import_public_key('directorroot')
-  key_dirroot_pri = demo.import_private_key('directorroot')
-  key_dirtime_pub = demo.import_public_key('directortimestamp')
-  key_dirtime_pri = demo.import_private_key('directortimestamp')
-  key_dirsnap_pub = demo.import_public_key('directorsnapshot')
-  key_dirsnap_pri = demo.import_private_key('directorsnapshot')
-  key_dirtarg_pub = demo.import_public_key('director')
-  key_dirtarg_pri = demo.import_private_key('director')
-
-  print(LOG_PREFIX + 'Initializing vehicle repositories')
-
-  # Create the demo Director instance.
-  director_service_instance = director.Director(
-    director_repos_dir=director_dir,
-    key_root_pri=key_dirroot_pri,
-    key_root_pub=key_dirroot_pub,
-    key_timestamp_pri=key_dirtime_pri,
-    key_timestamp_pub=key_dirtime_pub,
-    key_snapshot_pri=key_dirsnap_pri,
-    key_snapshot_pub=key_dirsnap_pub,
-    key_targets_pri=key_dirtarg_pri,
-    key_targets_pub=key_dirtarg_pub)
-
-  for vin in KNOWN_VINS:
-    # print("vin", vin)
-    director_service_instance.add_new_vehicle(vin)
-  
-
-# # 2025.07.18 nosho リモートでファイルを転送するための関数
-# def get_file(filepath):
-#     try:
-#         with open(filepath, "rb") as f:
-#             encoded = base64.b64encode(f.read()).decode("utf-8")
-#         return encoded
-#     except Exception as e:
-#         return f"ERROR: {str(e)}"
-    
-
-# def _log_subprocess_output(pipe, prefix):
-#     for line in iter(pipe.readline, ''):
-#         print(f"{prefix}: {line.rstrip()}")

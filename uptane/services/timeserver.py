@@ -37,9 +37,6 @@ from datetime import datetime, timedelta, timezone
 timeserver_key = None
 
 
-
-
-
 def set_timeserver_key(private_key):
 
   global timeserver_key
@@ -114,7 +111,10 @@ def get_time(nonces):
 
 
 def get_signed_time(nonces):
+  # ntpから時刻師取得してくるよう変更
+  # time_attestation = get_time(nonces)
   time_attestation = get_time_ntp(nonces)
+
 
   signable_time_attestation = tuf.formats.make_signable(time_attestation)
   uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
