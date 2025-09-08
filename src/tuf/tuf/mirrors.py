@@ -88,6 +88,10 @@ def get_list_of_mirrors(file_type, file_path, mirrors_list):
   tuf.formats.RELPATH_SCHEMA.check_match(file_path)
   tuf.formats.ALT_MIRRORLIST_SCHEMA.check_match(mirrors_list)
   tuf.formats.NAME_SCHEMA.check_match(file_type)
+  print("debug:file_path ", file_path)
+  print("debug:file_path ", mirrors_list)
+  print("debug:file_path ", file_type)
+
 
   # Verify 'file_type' is supported.
   if file_type not in _SUPPORTED_FILE_TYPES:

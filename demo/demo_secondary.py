@@ -301,7 +301,6 @@ def load_or_generate_key(use_new_keys=False):
 
 
 
-
 def update_cycle():
   """
   Updates our metadata and images from the Primary. Raises the appropriate
@@ -321,8 +320,13 @@ def update_cycle():
   print('Submitting a request for a signed time to the Primary.')
   log.debug('Submitting a request for a signed time to the Primary.')
 
+  if secondary_ecu is None:
+    secondary_ecu = load_secondary_obj()
+    pserver.register_new_secondary(secondary_ecu.ecu_serial)
+
   # Download the time attestation from the Primary.
-  time_attestation = pserver.get_time_attestation_for_ecu(_ecu_serial)
+  print("★ secondary_ecu.ecu_serial: ", secondary_ecu.ecu_serial)
+  time_attestation = pserver.get_time_attestation_for_ecu(secondary_ecu.ecu_serial)
   if tuf.conf.METADATA_FORMAT == 'der':
     # Binary data transfered via XMLRPC has to be wrapped in an xmlrpc Binary
     # object. The data itself is contained in attribute 'data'.
@@ -365,7 +369,8 @@ def update_cycle():
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
   secondary_ecu.process_metadata(archive_fname)
-
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   # As part of the process_metadata call, the secondary will have saved
   # validated target info for targets intended for it in
@@ -426,6 +431,8 @@ def update_cycle():
   log.debug('Submitting a request for a image to the Primary.')
   # Download the image for this ECU from the Primary.
   (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   if image is None:
     print(YELLOW + 'Requested image from Primary but received none. Update '
@@ -538,7 +545,8 @@ def update_cycle():
   # 2. Set the fileinfo in the secondary_ecu object to the target info for the
   #    new firmware.
   secondary_ecu.firmware_fileinfo = expected_target_info
-
+  # # 2025.07.24 nosho 初期設定データをバイナリに書き出し
+  # save_secondary_obj(secondary_ecu)
 
   with open(current_firmware_filepath, 'rb') as file_object:
     # 2025.08.21 nosho print_baner時のエラー例外処理追加
@@ -626,7 +634,6 @@ def ATTACK_send_corrupt_manifest_to_primary():
 
 
 
-
 def register_self_with_director():
   """
   Send the Director a message to register our ECU serial number and Public Key.
@@ -645,7 +652,6 @@ def register_self_with_director():
       uptane.common.public_key_from_canonical(secondary_ecu.ecu_key), _vin,
       False)
   print(GREEN + 'Secondary has been registered with the Director.' + ENDCOLORS)
-
 
 
 

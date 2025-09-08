@@ -43,6 +43,7 @@ import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
 import base64
+import base64
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -164,7 +165,7 @@ def clean_slate(repo_dir='imagerepo', use_new_keys=False):
 def write_to_live():
 
   global repo
-
+  print("repo", repo)
   # Write the metadata files out to the Image Repository's 'metadata.staged'
   #repo.mark_dirty(['timestamp', 'snapshot'])
   repo.mark_dirty(['timestamp', 'snapshot', 'root'])
@@ -236,12 +237,23 @@ def host():
   if sys.version_info.major < 3:  # Python 2 compatibility
     command = ['python', '-m', 'SimpleHTTPServer', str(demo.IMAGE_REPO_PORT)]
   else:
-    command = ['python3', '-m', 'http.server', str(demo.IMAGE_REPO_PORT)]
-
+    command = ['python3', '-m', 'http.server', str(demo.IMAGE_REPO_PORT),
+               '--bind', '0.0.0.0']
 
   # Begin hosting Image Repository.
+  # server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+  # 2025.07.22 nosho サブプロセスの標準出力・標準エラーを親プロセスに接続して読み取る
+  server_process = subprocess.Popen(command,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    bufsize=1,
+                                    universal_newlines=True)
 
-  server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
+  threading.Thread(target=log_subprocess_output, args=(
+    server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
+  threading.Thread(target=log_subprocess_output, args=(
+    server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
 

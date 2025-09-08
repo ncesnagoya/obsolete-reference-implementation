@@ -38,6 +38,7 @@ import shutil # For copyfile
 import threading # for the demo listener
 import time
 # 以下のimport文はPython2にも対応した形
+# 以下のimport文はPython2にも対応した形
 from six.moves import xmlrpc_client
 from six.moves import xmlrpc_server
 from six.moves import range
@@ -144,7 +145,6 @@ def clean_slate(
   tuf.conf.repository_directory = CLIENT_DIRECTORY
 
 
-
   # Initialize a Primary ECU, making a client directory and copying the root
   # file from the repositories.
   primary_ecu = primary.Primary(
@@ -155,6 +155,7 @@ def clean_slate(
       primary_key=ecu_key,
       time=clock,
       timeserver_public_key=key_timeserver_pub)
+  print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
 
 
   if listener_thread is None:
@@ -239,7 +240,6 @@ def load_or_generate_key(use_new_keys=False):
 
 
 
-
 def update_cycle():
   """
   """
@@ -251,6 +251,13 @@ def update_cycle():
   global listener_thread
 
   log.debug('Start Update Primary.')
+  # 2025.07.24 nosho primary_ecuオブジェクトがなければファイルから読み込み
+  global primary_ecu
+  global listener_thread
+  if primary_ecu is None:
+    primary_ecu = load_primary_obj()
+    print("★ primary_ecu.ecuserial", primary_ecu.ecu_serial)
+
   # First, we'll send the Timeserver a request for a signed time, with the
   # nonces Secondaries have sent us since last time. (This also saves these
   # nonces as "sent" and empties the Primary's list of nonces to send.)
@@ -264,7 +271,7 @@ def update_cycle():
   print('Submitting a request for a signed time to the Timeserver.')
   log.debug('Submitting a request for a signed time to the Timeserver.')
 
-
+  print(tuf.conf.METADATA_FORMAT)
   if tuf.conf.METADATA_FORMAT == 'der': # TODO: Should check setting in Uptane.
     time_attestation = tserver.get_signed_time_der(nonces_to_send).data
 
@@ -354,6 +361,9 @@ def update_cycle():
 
 
 
+
+
+
 def generate_signed_vehicle_manifest():
 
   global most_recent_signed_vehicle_manifest
@@ -362,7 +372,6 @@ def generate_signed_vehicle_manifest():
   # version/hash/size of file2.txt as its firmware.
   most_recent_signed_vehicle_manifest = \
       primary_ecu.generate_signed_vehicle_manifest()
-
 
 
 
@@ -404,7 +413,6 @@ def submit_vehicle_manifest_to_director(signed_vehicle_manifest=None):
 
 
 
-
 def register_self_with_director():
   """
   Send the Director a message to register our ECU serial number and Public Key.
@@ -420,7 +428,18 @@ def register_self_with_director():
       uptane.common.public_key_from_canonical(primary_ecu.primary_key),
       _vin, True)
   print(GREEN + 'Primary has been registered with the Director.' + ENDCOLORS)
+  
+  # # 2025.07.24 nosho server情報をファイルに書き出し
+  # data = {
+  #   "server": server,
+  # }
 
+  # # 保存先パスを作成
+  # save_path = os.path.join(demo.PRIMARY_SERVER_DIR, demo.ECU_SERVER_PKL)
+
+  # with open(save_path, "wb") as f:
+  #   pickle.dump(data, f)
+  # print(f"[保存完了] {save_path} に状態を保存しました。\n")
 
 
 # This wouldn't be how we'd do it in practice. ECUs would probably be registered
@@ -711,9 +730,6 @@ def clean_up_temp_file(filename):
     os.remove(filename)
 
 
-
-
-
 def clean_up_temp_folder():
   """
   Deletes the temp directory created by the demo
@@ -722,14 +738,8 @@ def clean_up_temp_folder():
     shutil.rmtree(CLIENT_DIRECTORY)
 
 
-
-
-
 def try_banners():
   preview_all_banners()
-
-
-
 
 
 def looping_update():

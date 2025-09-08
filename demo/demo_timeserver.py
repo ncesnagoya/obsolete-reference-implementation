@@ -117,7 +117,7 @@ def listen(use_new_keys=False):
   server.register_function(timeserver.get_signed_time, 'get_signed_time')
   server.register_function(
       get_signed_time_der_wrapper, 'get_signed_time_der')
-
+  print()
 
   print(LOG_PREFIX + 'Timeserver will now listen on port ' +
       str(demo.TIMESERVER_PORT))

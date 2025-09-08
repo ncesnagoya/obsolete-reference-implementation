@@ -56,7 +56,7 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
-
+import base64
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
 # implementation uses this to display banners for defenses that would otherwise
@@ -77,7 +77,7 @@ director_service_thread = None
 
 def clean_slate(use_new_keys=False):
 
-  global director_service_instance
+  # global director_service_instance
 
   director_dir = os.path.join(uptane.WORKING_DIR, demo.DIRECTOR_REPO_NAME)
   dirs_to_remove = ['111', '112', '113', 'democar']
@@ -101,29 +101,32 @@ def clean_slate(use_new_keys=False):
     demo.generate_key('directorsnapshot')
     demo.generate_key('director') # targets
 
-  key_dirroot_pub = demo.import_public_key('directorroot')
-  key_dirroot_pri = demo.import_private_key('directorroot')
-  key_dirtime_pub = demo.import_public_key('directortimestamp')
-  key_dirtime_pri = demo.import_private_key('directortimestamp')
-  key_dirsnap_pub = demo.import_public_key('directorsnapshot')
-  key_dirsnap_pri = demo.import_private_key('directorsnapshot')
-  key_dirtarg_pub = demo.import_public_key('director')
-  key_dirtarg_pri = demo.import_private_key('director')
+  #2025.07.15 nosho ディレクトリの指定、鍵のimportは以下の関数にまとめた
+  init_repo()
+
+  # key_dirroot_pub = demo.import_public_key('directorroot')
+  # key_dirroot_pri = demo.import_private_key('directorroot')
+  # key_dirtime_pub = demo.import_public_key('directortimestamp')
+  # key_dirtime_pri = demo.import_private_key('directortimestamp')
+  # key_dirsnap_pub = demo.import_public_key('directorsnapshot')
+  # key_dirsnap_pri = demo.import_private_key('directorsnapshot')
+  # key_dirtarg_pub = demo.import_public_key('director')
+  # key_dirtarg_pri = demo.import_private_key('director')
 
 
-  print(LOG_PREFIX + 'Initializing vehicle repositories')
+  # print(LOG_PREFIX + 'Initializing vehicle repositories')
 
-  # Create the demo Director instance.
-  director_service_instance = director.Director(
-      director_repos_dir=director_dir,
-      key_root_pri=key_dirroot_pri,
-      key_root_pub=key_dirroot_pub,
-      key_timestamp_pri=key_dirtime_pri,
-      key_timestamp_pub=key_dirtime_pub,
-      key_snapshot_pri=key_dirsnap_pri,
-      key_snapshot_pub=key_dirsnap_pub,
-      key_targets_pri=key_dirtarg_pri,
-      key_targets_pub=key_dirtarg_pub)
+  # # Create the demo Director instance.
+  # director_service_instance = director.Director(
+  #     director_repos_dir=director_dir,
+  #     key_root_pri=key_dirroot_pri,
+  #     key_root_pub=key_dirroot_pub,
+  #     key_timestamp_pri=key_dirtime_pri,
+  #     key_timestamp_pub=key_dirtime_pub,
+  #     key_snapshot_pri=key_dirsnap_pri,
+  #     key_snapshot_pub=key_dirsnap_pub,
+  #     key_targets_pri=key_dirtarg_pri,
+  #     key_targets_pub=key_dirtarg_pub)
 
   for vin in KNOWN_VINS:
     director_service_instance.add_new_vehicle(vin)
@@ -153,6 +156,8 @@ def clean_slate(use_new_keys=False):
   write_to_live()
 
   host()
+  # demo_director.py の listen() より前に
+  # print("Director instance:", director_service_instance)
 
   listen()
 
@@ -680,12 +685,23 @@ def host():
   if sys.version_info.major < 3: # Python 2 compatibility
     command = ['python', '-m', 'SimpleHTTPServer', str(demo.DIRECTOR_REPO_PORT)]
   else:
-    command = ['python3', '-m', 'http.server', str(demo.DIRECTOR_REPO_PORT)]
-
+    command = ['python3', '-m', 'http.server', str(demo.DIRECTOR_REPO_PORT),
+               '--bind', '0.0.0.0']
 
   # Begin hosting the director's repository.
+  # repo_server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+  # 2025.07.22 nosho サブプロセスの標準出力・標準エラーを親プロセスに接続して読み取る
+  repo_server_process = subprocess.Popen(command,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    bufsize=1,
+                                    universal_newlines=True)
 
-  repo_server_process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    # ログ読み取りスレッドを作成して標準出力・標準エラーをリアルタイム表示
+  threading.Thread(target=demo_image_repo.log_subprocess_output, args=(
+    repo_server_process.stdout, "HTTP-STDOUT"), daemon=True).start()
+  threading.Thread(target=demo_image_repo.log_subprocess_output, args=(
+    repo_server_process.stderr, "HTTP-STDERR"), daemon=True).start()
 
   os.chdir(uptane.WORKING_DIR)
 
@@ -763,8 +779,12 @@ def listen():
   global director_service_thread
 
   if director_service_thread is not None:
-    print(LOG_PREFIX + 'Sorry: there is already a Director service thread '
-        'listening.')
+    if director_service_thread.is_alive():
+      print(LOG_PREFIX + 'Sorry: there is already a Director service thread '
+            'listening.')
+    else:
+      # スレッドは存在しているが終了しているので再生成
+      print(LOG_PREFIX + 'Previous Director thread not alive. Restarting...')
     return
 
   # Create server

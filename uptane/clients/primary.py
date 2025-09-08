@@ -352,6 +352,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     """
 
     # Refresh the Director first, per the Uptane Standard.
+    print("self.director_repo_name: ", self.director_repo_name)
     self.updater.refresh(repo_name=self.director_repo_name)
 
     # Now that we've dealt with the Director repository, deal with any and all
@@ -511,6 +512,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           file of type tuf.conf.METADATA_FORMAT.
     """
     log.debug('Refreshing top level metadata from all repositories.')
+    print("★ self.director_repo_name: ", self.director_repo_name)
     self.refresh_toplevel_metadata()
 
     # Get the list of targets the director expects us to download and update to.

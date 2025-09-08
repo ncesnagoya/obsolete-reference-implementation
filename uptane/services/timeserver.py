@@ -60,6 +60,16 @@ def get_time_ntp(nonces, use_ntp=True): # 関数名注意
   :param use_ntp: TrueでNTP時刻を使用。Falseでローカル時刻。
   :return: time_attestation dict
   """
+def get_time_ntp(nonces, use_ntp=True): # 関数名注意
+  """
+  時刻を取得する関数。
+  use_ntp=True の場合は NTPサーバーから取得し、失敗時にはローカル時刻へフォールバック。
+  use_ntp=False の場合は最初からローカル時刻を使用。
+
+  :param nonces: リスト形式のnonce
+  :param use_ntp: TrueでNTP時刻を使用。Falseでローカル時刻。
+  :return: time_attestation dict
+  """
   uptane.formats.NONCE_LIST_SCHEMA.check_match(nonces)
 
   clock = None
