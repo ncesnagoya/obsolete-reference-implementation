@@ -511,10 +511,11 @@ def create_directory_structure_for_client(
     os.makedirs(os.path.join(client_dir, 'metadata', repo_name, 'previous'))
 
     # Set the root of trust we have for that repository.
-    shutil.copyfile(
-      root_fnames_by_repository[repo_name],
-      os.path.join(client_dir, 'metadata', repo_name, 'current',
-          'root.' + tuf.conf.METADATA_FORMAT))
+    # 2025.09.09 nosho サーバー経由でファイル取得するためコメントアウト
+    # shutil.copyfile(
+    #   root_fnames_by_repository[repo_name],
+    #   os.path.join(client_dir, 'metadata', repo_name, 'current',
+    #       'root.' + tuf.conf.METADATA_FORMAT))
 
 
   # Configure tuf with the client's metadata directories (where it stores the
