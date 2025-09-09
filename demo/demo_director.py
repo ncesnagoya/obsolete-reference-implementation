@@ -56,6 +56,7 @@ import atexit # to kill server process on exit()
 import tuf.asn1_codec as asn1_codec
 import tuf.util
 import json
+import base64
 
 # Tell the reference implementation that we're in demo mode.
 # (Provided for consistency.) Currently, primary.py in the reference
@@ -799,8 +800,8 @@ def listen():
   server.register_function(add_target_to_director, 'add_target_to_director')
   server.register_function(write_to_live, 'write_director_repo')
 
-  # # 2025.07.22 nosho VM04から取得できるようにする関数を登録
-  # server.register_function(demo_image_repo.get_file, 'get_file')
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(get_files, 'get_files')
 
   server.register_function(
       inventory.get_last_vehicle_manifest, 'get_last_vehicle_manifest')
@@ -1871,3 +1872,26 @@ def restore_metadata(vin):
     targets_path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
         targets_filename)
     shutil.move(current_targets_backup, targets_path)
+
+
+def get_files(filenames, vin):
+  """
+    指定されたファイル名リストを base64 エンコードして返す。
+    
+    Args:
+        filenames (list of str): 取得したいファイル名リスト（例: ["root.der", "timestamp.der"]）
+    
+    Returns:
+        dict: {filename: base64文字列, ...}
+  """
+  result = {}
+  for fname in filenames:
+      path = os.path.join(
+        os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', 'root' + demo.METADATA_EXTENSION),
+        fname)
+      if not os.path.isfile(path):
+          result[fname] = None  # ファイルが存在しない場合は None
+          continue
+      with open(path, "rb") as f:
+          result[fname] = base64.b64encode(f.read()).decode("utf-8")
+  return result

@@ -125,13 +125,40 @@ def clean_slate(
   # error occurs here).
   # 以下コードがあると作成したプライマリのファイルが削除される
   # atexit.register(clean_up_temp_folder)
+
+  # 2025.09.09 nosho VMを分けた場合、xmlrpcサーバを介してmetadataを取得する処理追加
+  # Director XML-RPC
+  dserver = xmlrpc.client.ServerProxy(
+    f"http://{demo.DIRECTOR_SERVER_HOST}:{demo.DIRECTOR_SERVER_PORT}/RPC2",
+    allow_none=True)
+  # 必要な root ファイルを取得
+  dserver_root_file = dserver.get_files(["root.der"], vin)
+
+  iserver = xmlrpc.client.ServerProxy(
+    f"http://{demo.IMAGE_REPO_SERVICE_HOST}:{demo.IMAGE_REPO_SERVICE_PORT}/RPC2",
+    allow_none=True)
+  iserver_root_file = iserver.get_files(["root.der"])
+
+  root_files_b64 = ([dserver_root_file, iserver_root_file])
+  root_fnames_by_repository = {}
+  for repo_name, b64data in root_files_b64.items():
+      path = f"{CLIENT_DIRECTORY}/metadata/{repo_name}/current/root.der"
+      os.makedirs(os.path.dirname(path), exist_ok=True)
+      with open(path, "wb") as f:
+          f.write(base64.b64decode(b64data))
+      root_fnames_by_repository[repo_name] = path
+
+  # 既存の pinned.json のパス
+  # pinning_fname = "/home/vagrant/scudo/uptane/demo/pinned_primary_template.json"
+
   try:
     print("CLIENT_DIRECTORY", CLIENT_DIRECTORY)
     uptane.common.create_directory_structure_for_client(
         CLIENT_DIRECTORY, create_primary_pinning_file(),
-        {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
-        demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-        'metadata', 'root' + demo.METADATA_EXTENSION)})
+        root_fnames_by_repository)
+        # {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
+        # demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+        # 'metadata', 'root' + demo.METADATA_EXTENSION)})
     # atexit.register(clean_up_temp_folder)
 
   except IOError:
@@ -743,9 +770,9 @@ def looping_update():
 
 # 他VMからHTTP経由でファイルを取得するための関数
 def download_file(server_url, remote_path, local_path):
-    proxy = xmlrpc.client.ServerProxy(server_url, allow_none=True)
+    server = xmlrpc.client.ServerProxy(server_url, allow_none=True)
     print(f"Downloading {remote_path} from {server_url} ...")
-    filedata = proxy.get_file(remote_path)
+    filedata = server.get_file(remote_path)
 
     if filedata.startswith("ERROR"):
         print("Server error:", filedata)
@@ -754,6 +781,24 @@ def download_file(server_url, remote_path, local_path):
     with open(local_path, "wb") as f:
         f.write(base64.b64decode(filedata))
     print(f"Saved to {local_path}")
+
+
+    # Director XML-RPC
+    server = xmlrpc.client.ServerProxy("http://192.168.194.22:8000/")
+
+    # 必要な root ファイルを取得
+    root_files_b64 = server.get_root_files(["imagerepo", "director"])
+
+    root_fnames_by_repository = {}
+    for repo_name, b64data in root_files_b64.items():
+        path = f"/home/vagrant/scudo/primary/temp_primaryTX2P8/metadata/{repo_name}/current/root.der"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(b64data))
+        root_fnames_by_repository[repo_name] = path
+
+    # 既存の pinned.json のパス
+    pinning_fname = "/home/vagrant/scudo/uptane/demo/pinned_primary_template.json"
 
 
 # 他VMからHTTP経由でファイルを取得するための関数

@@ -309,8 +309,8 @@ def listen():
       'add_target_to_image_repo')
   server.register_function(write_to_live, 'write_image_repo')
 
-  # # 2025.07.22 nosho VM04から取得できるようにする関数を登録
-  # server.register_function(get_file, 'get_file')
+  # 2025.07.22 nosho VM04から取得できるようにする関数を登録
+  server.register_function(get_files, 'get_files')
 
   # Attack 1: Arbitrary Package Attack on Image Repository without
   # Compromised Keys.
@@ -684,7 +684,7 @@ def convert_metadata_json_to_der(rolename):
   return
 
 
-# # 2025.07.18 nosho リモートでファイルを転送するための関数
+# 2025.07.18 nosho リモートでファイルを転送するための関数
 # def get_file(filepath):
 #     try:
 #         with open(filepath, "rb") as f:
@@ -692,6 +692,28 @@ def convert_metadata_json_to_der(rolename):
 #         return encoded
 #     except Exception as e:
 #         return f"ERROR: {str(e)}"
+
+def get_files(filenames):
+  """
+    指定されたファイル名リストを base64 エンコードして返す。
+    
+    Args:
+        filenames (list of str): 取得したいファイル名リスト（例: ["root.der", "timestamp.der"]）
+    
+    Returns:
+        dict: {filename: base64文字列, ...}
+  """
+  result = {}
+  for fname in filenames:
+      path = os.path.join(
+        os.path.join(demo.IMAGE_REPO_DIR, 'metadata', 'root' + demo.METADATA_EXTENSION),
+        fname)
+      if not os.path.isfile(path):
+          result[fname] = None  # ファイルが存在しない場合は None
+          continue
+      with open(path, "rb") as f:
+          result[fname] = base64.b64encode(f.read()).decode("utf-8")
+  return result
 
 
 # def log_subprocess_output(pipe, prefix):
