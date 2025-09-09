@@ -706,7 +706,7 @@ def get_files(filenames):
   result = {}
   for fname in filenames:
       path = os.path.join(demo.IMAGE_REPO_DIR, 'metadata',
-                          fname, tuf.conf.METADATA_FORMAT)
+                          fname + tuf.conf.METADATA_FORMAT)
       print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None
