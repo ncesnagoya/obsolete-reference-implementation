@@ -705,9 +705,8 @@ def get_files(filenames):
   """
   result = {}
   for fname in filenames:
-      path = os.path.join(
-        os.path.join(demo.IMAGE_REPO_DIR, 'metadata', 'root' + demo.METADATA_EXTENSION),
-        fname)
+      path = os.path.join(demo.IMAGE_REPO_DIR, 'metadata', fname)
+      print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None
           continue

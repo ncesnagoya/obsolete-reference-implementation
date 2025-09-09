@@ -1886,9 +1886,8 @@ def get_files(filenames, vin):
   """
   result = {}
   for fname in filenames:
-      path = os.path.join(
-        os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', 'root' + demo.METADATA_EXTENSION),
-        fname)
+      path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', fname)
+      print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None
           continue

@@ -753,6 +753,7 @@ def download_file(vin):
     allow_none=True)
   # 必要な root ファイルを取得
   dfiles = dserver.get_files(["root.der"], vin)
+  print("受信したデータ:", dfiles)
   # {"director": {filename: base64文字列, ...}}
   server_files = {demo.DIRECTOR_REPO_NAME: dfiles}
 
@@ -760,6 +761,7 @@ def download_file(vin):
     f"http://{demo.IMAGE_REPO_SERVICE_HOST}:{demo.IMAGE_REPO_SERVICE_PORT}/RPC2",
     allow_none=True)
   ifiles = iserver.get_files(["root.der"])
+  print("受信したデータ:", dfiles)
   server_files[demo.IMAGE_REPO_NAME] = ifiles
 
   root_fnames_by_repository = {}
