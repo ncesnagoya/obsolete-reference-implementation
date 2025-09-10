@@ -127,7 +127,7 @@ def clean_slate(
   # atexit.register(clean_up_temp_folder)
 
   # 2025.09.09 nosho VMを分けた場合、xmlrpcサーバを介してmetadataを取得する処理追加
-  root_fnames_by_repository = download_file(vin)
+  root_fnames_by_repository = demo.download_file(vin)
 
   try:
     uptane.common.create_directory_structure_for_client(
@@ -740,27 +740,6 @@ def looping_update():
     except Exception as e:
       print(repr(e))
     time.sleep(1)
-
-
-# 他VMからxmlrpc経由でファイルを取得するための関数
-def download_file(vin):
-  # director VMに接続
-  dserver = xmlrpc.client.ServerProxy(
-    f"http://{demo.DIRECTOR_SERVER_HOST}:{demo.DIRECTOR_SERVER_PORT}/RPC2",
-    allow_none=True)
-  # 必要な root ファイルを取得
-  dfiles = dserver.get_files(["root." + tuf.conf.METADATA_FORMAT], vin)
-  # {"director": {filename: base64文字列, ...}}
-  server_files = {demo.DIRECTOR_REPO_NAME: dfiles}
-
-  # imagerepo VMに接続
-  iserver = xmlrpc.client.ServerProxy(
-    f"http://{demo.IMAGE_REPO_SERVICE_HOST}:{demo.IMAGE_REPO_SERVICE_PORT}/RPC2",
-    allow_none=True)
-  ifiles = iserver.get_files(["root." + tuf.conf.METADATA_FORMAT])
-  server_files[demo.IMAGE_REPO_NAME] = ifiles
-
-  return server_files
 
 
 # 他VMからHTTP経由でファイルを取得するための関数

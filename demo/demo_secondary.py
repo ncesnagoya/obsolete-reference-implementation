@@ -139,6 +139,8 @@ def clean_slate(
   clock = clock.isoformat() + 'Z'
   tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
 
+  # 2025.09.09 nosho xmlrpcサーバを介してmetadataを取得する処理追加(出荷時インストール想定)
+  root_fnames_by_repository = demo.download_file(vin)
 
   # Create directory structure for the client and copy the root files from the
   # repositories. First, schedule the deletion of this directory to occur when
@@ -147,9 +149,10 @@ def clean_slate(
   # atexit.register(clean_up_temp_folder)
   uptane.common.create_directory_structure_for_client(
       CLIENT_DIRECTORY, create_secondary_pinning_file(),
-      {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
-      demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
-      'metadata', 'root' + demo.METADATA_EXTENSION)})
+      root_fnames_by_repository)
+      # {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
+      # demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
+      # 'metadata', 'root' + demo.METADATA_EXTENSION)})
 
 
 

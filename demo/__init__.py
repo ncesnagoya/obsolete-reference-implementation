@@ -11,6 +11,7 @@ import tuf.conf
 import random, string # To generate random strings for Secondary directory names
 
 from six.moves import range
+import xmlrpc.client
 
 # Values to plug in below as needed.
 LOCAL = 'localhost'
@@ -118,3 +119,23 @@ def get_random_string(length):
       random.choice(string.ascii_uppercase + string.ascii_lowercase +
       string.digits) for i in range(length))
 
+
+# 2025.09.10 nosho 他VMからxmlrpc経由でファイルを取得するための関数
+def download_file(vin):
+  # director VMに接続
+  dserver = xmlrpc.client.ServerProxy(
+    f"http://{DIRECTOR_SERVER_HOST}:{DIRECTOR_SERVER_PORT}/RPC2",
+    allow_none=True)
+  # 必要な root ファイルを取得
+  dfiles = dserver.get_files(["root." + tuf.conf.METADATA_FORMAT], vin)
+  # {"director": {filename: base64文字列, ...}}
+  server_files = {DIRECTOR_REPO_NAME: dfiles}
+
+  # imagerepo VMに接続
+  iserver = xmlrpc.client.ServerProxy(
+    f"http://{IMAGE_REPO_SERVICE_HOST}:{IMAGE_REPO_SERVICE_PORT}/RPC2",
+    allow_none=True)
+  ifiles = iserver.get_files(["root." + tuf.conf.METADATA_FORMAT])
+  server_files[IMAGE_REPO_NAME] = ifiles
+
+  return server_files
