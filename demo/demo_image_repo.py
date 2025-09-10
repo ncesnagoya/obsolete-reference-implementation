@@ -684,29 +684,18 @@ def convert_metadata_json_to_der(rolename):
   return
 
 
-# 2025.07.18 nosho リモートでファイルを転送するための関数
-# def get_file(filepath):
-#     try:
-#         with open(filepath, "rb") as f:
-#             encoded = base64.b64encode(f.read()).decode("utf-8")
-#         return encoded
-#     except Exception as e:
-#         return f"ERROR: {str(e)}"
-
 def get_files(filenames):
   """
     指定されたファイル名リストを base64 エンコードして返す。
-    
     Args:
-        filenames (list of str): 取得したいファイル名リスト（例: ["root.der", "timestamp.der"]）
-    
+        filenames (list of str): 取得したいファイル名リスト
+        （例: ["root.der", "timestamp.der"]）
     Returns:
         dict: {filename: base64文字列, ...}
   """
   result = {}
   for fname in filenames:
-      path = os.path.join(demo.IMAGE_REPO_DIR, 'metadata',
-                          fname + tuf.conf.METADATA_FORMAT)
+      path = os.path.join(demo.IMAGE_REPO_DIR, 'metadata', fname)
       print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None

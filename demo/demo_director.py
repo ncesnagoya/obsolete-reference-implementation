@@ -1877,17 +1877,15 @@ def restore_metadata(vin):
 def get_files(filenames, vin):
   """
     指定されたファイル名リストを base64 エンコードして返す。
-    
     Args:
-        filenames (list of str): 取得したいファイル名リスト（例: ["root.der", "timestamp.der"]）
-    
+        filenames (list of str): 取得したいファイル名リスト
+        （例: ["root.der", "timestamp.der"]）
     Returns:
         dict: {filename: base64文字列, ...}
   """
   result = {}
   for fname in filenames:
-      path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata',
-                          fname + tuf.conf.METADATA_FORMAT)
+      path = os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata', fname)
       print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None

@@ -753,8 +753,7 @@ def download_file(vin):
     f"http://{demo.DIRECTOR_SERVER_HOST}:{demo.DIRECTOR_SERVER_PORT}/RPC2",
     allow_none=True)
   # 必要な root ファイルを取得
-  dfiles = dserver.get_files(["root."], vin)
-  print("受信したデータ:", dfiles)
+  dfiles = dserver.get_files(["root." + tuf.conf.METADATA_FORMAT], vin)
   # {"director": {filename: base64文字列, ...}}
   server_files = {demo.DIRECTOR_REPO_NAME: dfiles}
 
@@ -762,23 +761,22 @@ def download_file(vin):
   iserver = xmlrpc.client.ServerProxy(
     f"http://{demo.IMAGE_REPO_SERVICE_HOST}:{demo.IMAGE_REPO_SERVICE_PORT}/RPC2",
     allow_none=True)
-  ifiles = iserver.get_files(["root."])
-  print("受信したデータ:", dfiles)
+  ifiles = iserver.get_files(["root." + tuf.conf.METADATA_FORMAT])
   server_files[demo.IMAGE_REPO_NAME] = ifiles
 
   # 取得したデータをファイルに書き出し
-  root_fnames_by_repository = {}
-  for repo_name, files in server_files.items():
-    for fname, b64data in files.items():
-      path = os.path.join(CLIENT_DIRECTORY, "metadata", repo_name, "current",
-                          fname, tuf.conf.METADATA_FORMAT)
-      os.makedirs(os.path.dirname(path), exist_ok=True)
-      with open(path, "wb") as f:
-          f.write(base64.b64decode(b64data))
-          print(f"[INFO] Saved {repo_name}/{fname} -> {path}")
-      root_fnames_by_repository[repo_name] = path
+  # root_fnames_by_repository = {}
+  # for repo_name, files in server_files.items():
+  #   for fname, b64data in files.items():
+  #     path = os.path.join(CLIENT_DIRECTORY, "metadata", repo_name, "current",
+  #                         fname + tuf.conf.METADATA_FORMAT)
+  #     os.makedirs(os.path.dirname(path), exist_ok=True)
+  #     with open(path, "wb") as f:
+  #         f.write(base64.b64decode(b64data))
+  #         print(f"[INFO] Saved {repo_name}/{fname + tuf.conf.METADATA_FORMAT} -> {path}")
+  #     root_fnames_by_repository[repo_name] = path
 
-  return root_fnames_by_repository
+  return server_files
 
 
 # 他VMからHTTP経由でファイルを取得するための関数

@@ -13,6 +13,7 @@ import os
 import shutil
 import copy
 import hashlib
+import base64
 
 # TODO: This import is not ideal at this level. Common should probably not
 # import anything from other Uptane modules. Consider putting the
@@ -516,6 +517,22 @@ def create_directory_structure_for_client(
     #   root_fnames_by_repository[repo_name],
     #   os.path.join(client_dir, 'metadata', repo_name, 'current',
     #       'root.' + tuf.conf.METADATA_FORMAT))
+    # for repo_name, files in root_fnames_by_repository.items():
+    #   for fname, b64data in files.items():
+    """
+    2025.09.10 nosho サーバーから受信したデータを保存する
+    root_fnames_by_repository: dict mapping repository name -> {filename: b64data}
+                               e.g. {"director": {"root.json": "...base64..."}}
+    """
+    if repo_name in root_fnames_by_repository:
+      for fname, b64data in root_fnames_by_repository[repo_name].items():
+        path = os.path.join(client_dir, "metadata", repo_name, "current",
+                            fname + tuf.conf.METADATA_FORMAT)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(b64data))
+            print(f"[INFO] Saved {repo_name}/{fname + tuf.conf.METADATA_FORMAT} -> {path}")
+        root_fnames_by_repository[repo_name] = path
 
 
   # Configure tuf with the client's metadata directories (where it stores the
