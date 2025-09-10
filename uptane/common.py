@@ -526,12 +526,11 @@ def create_directory_structure_for_client(
     """
     if repo_name in root_fnames_by_repository:
       for fname, b64data in root_fnames_by_repository[repo_name].items():
-        path = os.path.join(client_dir, "metadata", repo_name, "current",
-                            fname + tuf.conf.METADATA_FORMAT)
+        path = os.path.join(client_dir, "metadata", repo_name, "current", fname)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(base64.b64decode(b64data))
-            print(f"[INFO] Saved {repo_name}/{fname + tuf.conf.METADATA_FORMAT} -> {path}")
+            print(f"[INFO] Saved {repo_name}/{fname} -> {path}")
         root_fnames_by_repository[repo_name] = path
 
 
