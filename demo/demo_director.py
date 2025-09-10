@@ -680,8 +680,10 @@ def host():
   command = []
   if sys.version_info.major < 3: # Python 2 compatibility
     command = ['python', '-m', 'SimpleHTTPServer', str(demo.DIRECTOR_REPO_PORT)]
+    print("Image SimpleHTTPServer")
   else:
     command = ['python3', '-m', 'http.server', str(demo.DIRECTOR_REPO_PORT)]
+    print("director http.server")
 
 
   # Begin hosting the director's repository.

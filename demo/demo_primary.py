@@ -130,7 +130,6 @@ def clean_slate(
   root_fnames_by_repository = download_file(vin)
 
   try:
-    print("CLIENT_DIRECTORY", CLIENT_DIRECTORY)
     uptane.common.create_directory_structure_for_client(
         CLIENT_DIRECTORY, create_primary_pinning_file(),
         root_fnames_by_repository)
@@ -200,9 +199,6 @@ def create_primary_pinning_file():
   """
   with open(demo.DEMO_PRIMARY_PINNING_FNAME, 'r') as fobj:
     pinnings = json.load(fobj)
-    print("demo.DEMO_PRIMARY_PINNING_FNAME", demo.DEMO_PRIMARY_PINNING_FNAME)
-    print("demo.DIRECTOR_REPO_NAME", demo.DIRECTOR_REPO_NAME)
-    print("pinnings", pinnings)
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_primary_' + demo.get_random_string(5))
@@ -763,18 +759,6 @@ def download_file(vin):
     allow_none=True)
   ifiles = iserver.get_files(["root." + tuf.conf.METADATA_FORMAT])
   server_files[demo.IMAGE_REPO_NAME] = ifiles
-
-  # 取得したデータをファイルに書き出し
-  # root_fnames_by_repository = {}
-  # for repo_name, files in server_files.items():
-  #   for fname, b64data in files.items():
-  #     path = os.path.join(CLIENT_DIRECTORY, "metadata", repo_name, "current",
-  #                         fname + tuf.conf.METADATA_FORMAT)
-  #     os.makedirs(os.path.dirname(path), exist_ok=True)
-  #     with open(path, "wb") as f:
-  #         f.write(base64.b64decode(b64data))
-  #         print(f"[INFO] Saved {repo_name}/{fname + tuf.conf.METADATA_FORMAT} -> {path}")
-  #     root_fnames_by_repository[repo_name] = path
 
   return server_files
 
