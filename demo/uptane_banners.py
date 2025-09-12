@@ -118,13 +118,17 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
   """
 
   rows, cols = get_screen_size()
-  content_height = 0
+  left_fill = 0
 
   # Get left padding
   banner_width = len(max(banner_array, key=len))
 
   if banner_width > cols:
-    raise Exception("Banner width exceeds terminal width.")
+    # 2025.09.12 nosho 高さ制限でデモが落ちないように変更
+    # raise Exception("Banner width exceeds terminal width.")
+    print("warning : Text exceeds terminal height.")
+    banner_array = [line[:cols] for line in banner_array]
+    banner_width = cols
   elif banner_width == cols:
     left_fill = 0
   else:
@@ -135,6 +139,7 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
 
   # Print banner, horizontally left and right padded
   for line in banner_array:
+    left_fill = (cols - banner_width)
     right_fill = cols - left_fill - len(line)
     # Right and left fill with spaces (for alignment and background color)
     output = (left_fill * " ") + line + (right_fill * " ")
