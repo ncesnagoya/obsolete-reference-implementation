@@ -276,6 +276,11 @@ def host():
 class RequestHandler(xmlrpc_server.SimpleXMLRPCRequestHandler):
   rpc_paths = ('/RPC2',)
 
+  # 2025.09.17 nosho 標準出力へのアクセスログを抑制(以下のログ出力抑制)
+  # 例. 192.168.194.21 - - [17/Sep/2025 18:26:22] "POST /RPC2 HTTP/1.1" 200 -
+  def log_message(self, format, *args):
+      pass
+
 
 def listen():
   """
