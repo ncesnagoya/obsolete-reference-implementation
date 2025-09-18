@@ -84,7 +84,9 @@ most_recent_signed_vehicle_manifest = None
 log = uptane.logging.getLogger('demo_Primary')
 log.addHandler(uptane.file_handler)
 log.addHandler(uptane.console_handler)
-log.setLevel(uptane.logging.DEBUG)
+# 2025.09.18 logはINFO以上を表示させるよう変更
+# log.setLevel(uptane.logging.DEBUG)
+log.setLevel(uptane.logging.INFO)
 
 
 def clean_slate(
