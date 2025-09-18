@@ -130,7 +130,8 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
     banner_array = [line[:cols] for line in banner_array]
     banner_width = cols
   elif banner_width == cols:
-    left_fill = 0
+    # left_fill = 0
+    left_fill = (cols - banner_width) // 2
   else:
     left_fill = int((cols - banner_width) / 2)
 
@@ -139,7 +140,7 @@ def print_banner(banner_array, show_for=False, color=False, color_bg=False,
 
   # Print banner, horizontally left and right padded
   for line in banner_array:
-    left_fill = (cols - banner_width)
+    left_fill = (cols - banner_width) // 2    # 中央寄せ
     right_fill = cols - left_fill - len(line)
     # Right and left fill with spaces (for alignment and background color)
     output = (left_fill * " ") + line + (right_fill * " ")
