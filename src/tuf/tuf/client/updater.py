@@ -731,7 +731,6 @@ class Updater(object):
 
     if repo_name is not None:
       self._validate_repo_name(repo_name)
-      print("デバック：", repo_name)
       return self.repositories[repo_name].download_target(target,
           destination_directory)
 
@@ -3785,11 +3784,8 @@ class SingleRepoUpdater(object):
     # separator (i.e., is treated as an absolute path).
     destination = os.path.join(destination_directory,
                                target_filepath.lstrip(os.sep))
-    print("デバック１", destination)
     destination = os.path.abspath(destination)
     target_dirpath = os.path.dirname(destination)
-    print("デバック２", destination)
-    print("デバック３", target_dirpath)
 
     # When attempting to create the leaf directory of 'target_dirpath', ignore
     # any exceptions raised if the root directory already exists.  All other
