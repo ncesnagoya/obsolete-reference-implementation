@@ -673,10 +673,10 @@ def add_eviltarget_and_write_to_live(filename='firmware.img'):
 
 def convert_metadata_der_to_json(rolename):
   metadata_signable = tuf.util.load_file(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.der'))
-  
+
   fileobject = open(os.path.join(demo.IMAGE_REPO_DIR, 'metadata', rolename + '.json'), 'w' )
   json.dump(metadata_signable, fileobject)
-  
+
   return
 
 
@@ -703,15 +703,9 @@ def get_files(filenames):
   result = {}
   for fname in filenames:
       path = os.path.join(demo.IMAGE_REPO_DIR, 'metadata', fname)
-      print("取得するファイルパス: ", path)
       if not os.path.isfile(path):
           result[fname] = None  # ファイルが存在しない場合は None
           continue
       with open(path, "rb") as f:
           result[fname] = base64.b64encode(f.read()).decode("utf-8")
   return result
-
-
-# def log_subprocess_output(pipe, prefix):
-#     for line in iter(pipe.readline, b''):
-#         print(f"{prefix}: {line.rstrip()}")
