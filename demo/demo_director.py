@@ -1225,6 +1225,15 @@ def clear_vehicle_targets(vin):
   print(LOG_PREFIX + 'CLEARING VEHICLE TARGETS for VIN ' + repr(vin))
   director_service_instance.vehicle_repositories[vin].targets.clear_targets()
 
+  repo = director_service_instance.vehicle_repositories[vin]
+    # ECUごとの割り当てを確認
+  assigned_targets = list(repo.ecu_repositories.keys())
+  for ecu_serial in assigned_targets:
+      print(LOG_PREFIX + f'Removing targets for ECU {ecu_serial}')
+      repo.ecu_repositories[ecu_serial].targets.clear_targets()
+
+  # VIN単位のtargetsもクリア
+  repo.targets.clear_targets()
 
 
 
