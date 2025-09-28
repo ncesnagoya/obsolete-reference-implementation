@@ -2006,7 +2006,8 @@ class SingleRepoUpdater(object):
             text='No image was found that exactly matches the signed metadata '
             'from the Director and Image Repositories. Not keeping '
             'untrustworthy files. ', sound=TADA)
-
+        # バナー表示確認のためスリープ追記
+        time.sleep(5)
         # Add print_banner EEND
 
 
