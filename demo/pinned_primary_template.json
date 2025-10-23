@@ -1,10 +1,10 @@
 {
   "repositories": {
     "imagerepo": {
-      "mirrors": ["http://192.168.194.21:30301"]
+      "mirrors": ["http://localhost:30301"]
     },
     "director": {
-      "mirrors": ["http://192.168.194.22:30401/<VIN>"]
+      "mirrors": ["http://localhost:30401/<VIN>"]
     }
   },
   "delegations": [
